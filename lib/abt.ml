@@ -148,7 +148,10 @@ module type Operator = sig
   val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
 end
 
-module Abt (O : Operator) : sig
+module Make (O : Operator) : sig
+  (** [Make (O)] is a module for constructing and manipulating ABTs for the
+      operators defined in [O]. *)
+
   type t
   (** The type of ABT's constructed from the operators defind in {module:!O} *)
 
@@ -303,7 +306,7 @@ let%expect_test "Example usage" =
         | Plus (a, b) -> Printf.sprintf "(%s + %s)" a b
     end
 
-    include Abt (Operator)
+    include Make (Operator)
 
     let num n = op (Num n)
 
@@ -328,7 +331,7 @@ let%expect_test "Example usage" =
   [%expect {| (1 + y) |}];
 
   (* Free variables are not alpha equivalent  *)
-  assert Ex.(not @@ equal one_plus_x one_plus_y);
+  assert (Ex.(not @@ equal one_plus_x one_plus_y));
 
   let shadow_x_in_bound_x = Ex.("x" #. (plus "x"#.one_plus_x (v "x"))) in
   Ex.show shadow_x_in_bound_x;
@@ -339,7 +342,7 @@ let%expect_test "Example usage" =
   [%expect {| y.(x.(1 + x) + y) |}];
 
   (* Bound variables allow alpha equivalence *)
-  assert Ex.(equal shadow_x_in_bound_x bind_x_in_bound_y);
+  assert (Ex.(equal shadow_x_in_bound_x bind_x_in_bound_y));
 
   (* Substitution respects shadowed scope *)
   let subst1 = Ex.(shadow_x_in_bound_x |> subst "x" ~value:(num 3)) in
