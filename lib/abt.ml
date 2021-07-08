@@ -362,7 +362,7 @@ let%expect_test "Example usage" =
             None
         | Some a, Some b -> Some (a + b)
       in
-      t |> case ~var ~bnd ~opr
+      case t ~var ~bnd ~opr
 
     let rec eval : t -> t =
      fun t ->
