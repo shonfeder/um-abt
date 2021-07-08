@@ -7,6 +7,7 @@
 (license MIT)
 (authors "Shon Feder")
 (maintainers "shon.feder@gmail.com")
+(documentation "https://shonfeder.github.io/um-abt")
 
 (package
  (name um-abt)
