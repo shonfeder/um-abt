@@ -153,7 +153,7 @@ module Make (O : Operator) : sig
       operators defined in [O]. *)
 
   type t
-  (** The type of ABT's constructed from the operators defind in {module:!O} *)
+  (** The type of ABT's constructed from the operators defind in [O] *)
 
   val v : string -> t
   (** [v x] is a leaf in the ABT consisting of a variable named [x] *)
