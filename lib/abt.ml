@@ -178,22 +178,36 @@ module Make (O : Operator) : sig
 
   val equal : t -> t -> bool
   (** [equal t t'] is [true] when [t] and [t'] are alpha equivalent and [false] otherwise *)
-end = struct
-  type 'a abt =
-    | Var of Var.t
-    | Bnd of Var.Binding.t * 'a
-    | Opr of 'a O.t
 
-  type t = T of t abt
+  val case :
+       var:(Var.t -> 'a)
+    -> bnd:(Var.Binding.t -> t -> 'a)
+    -> opr:(t O.t -> 'a)
+    -> t
+    -> 'a
+
+  val transform :
+       var:(Var.t -> Var.t)
+    -> bnd:(Var.Binding.t * t -> Var.Binding.t * t)
+    -> opr:(t O.t -> t O.t)
+    -> t
+    -> t
+end = struct
+  type abt =
+    | Var of Var.t
+    | Bnd of Var.Binding.t * t
+    | Opr of t O.t
+
+  and t = T of abt
 
   (* Get the ABT inside of t *)
-  let un_t : t -> t abt = fun (T abt) -> abt
+  let un_t : t -> abt = fun (T abt) -> abt
 
   (* Put the ABT inside of t *)
-  let in_t : t abt -> t = fun abt -> T abt
+  let in_t : abt -> t = fun abt -> T abt
 
   (* Apply f to the ABT inside of t *)
-  let app_t : (t abt -> t abt) -> t -> t = fun f t -> un_t t |> f |> in_t
+  let app_t : (abt -> abt) -> t -> t = fun f t -> un_t t |> f |> in_t
 
   (* Alpha-equivalence is derived by checking that the structure of the
      two abts is the same.
@@ -281,10 +295,26 @@ end = struct
   let op a = T (Opr a)
 
   let v : string -> t = fun s -> T (Var (Var.v s))
+
+  let case ~var ~bnd ~opr t =
+    match un_t t with
+    | Var v      -> var v
+    | Bnd (b, t) -> bnd b t
+    | Opr o      -> opr o
+
+  let transform ~var ~bnd ~opr t =
+    in_t
+    @@
+    match un_t t with
+    | Var v      -> Var (var v)
+    | Opr o      -> Opr (opr o)
+    | Bnd (b, t) ->
+        let b, t = bnd (b, t) in
+        Bnd (b, t)
 end
 
 let%expect_test "Example usage" =
-  let module Ex = struct
+  let module Syntax = struct
     module Operator = struct
       type 'a t =
         | Num of int
@@ -314,46 +344,90 @@ let%expect_test "Example usage" =
 
     let show t = to_string t |> print_endline
   end in
-  let one : Ex.t = Ex.(num 1) in
-  Ex.show one;
+  let module Semantics = struct
+    open Syntax
+
+    let rec reduce : t -> int option =
+     fun t ->
+      let var = Fun.const None in
+      let bnd _ = Fun.const None in
+      let opr =
+        let open Operator in
+        function
+        | Num n       -> Some n
+        | Plus (a, b) ->
+        match (reduce a, reduce b) with
+        | None, _
+        | _, None ->
+            None
+        | Some a, Some b -> Some (a + b)
+      in
+      t |> case ~var ~bnd ~opr
+
+    let rec eval : t -> t =
+     fun t ->
+      let var = Fun.id in
+      let bnd (b, t) = (b, eval t) in
+      let opr =
+        let open Operator in
+        function
+        | Num n       -> Num n
+        | Plus (a, b) ->
+        match (reduce a, reduce b) with
+        | None, None      -> Plus (a, b)
+        | Some n, Some n' -> Num (n + n')
+        | Some n, None    -> Plus (num n, b)
+        | None, Some n'   -> Plus (a, num n')
+      in
+      transform t ~var ~bnd ~opr
+  end in
+  let one = Syntax.(num 1) in
+  Syntax.show one;
   [%expect {| 1 |}];
 
-  let two : Ex.t = Ex.(num 2) in
-  Ex.show two;
+  let two = Syntax.(num 2) in
+  Syntax.show two;
   [%expect {| 2 |}];
 
-  let one_plus_x = Ex.(plus one (v "x")) in
-  Ex.show one_plus_x;
+  let one_plus_x = Syntax.(plus one (v "x")) in
+  Syntax.show one_plus_x;
   [%expect {| (1 + x) |}];
 
-  let one_plus_y = Ex.(plus one (v "y")) in
-  Ex.show one_plus_y;
+  let one_plus_y = Syntax.(plus one (v "y")) in
+  Syntax.show one_plus_y;
   [%expect {| (1 + y) |}];
 
   (* Free variables are not alpha equivalent  *)
-  assert (Ex.(not @@ equal one_plus_x one_plus_y));
+  assert (Syntax.(not @@ equal one_plus_x one_plus_y));
 
-  let shadow_x_in_bound_x = Ex.("x" #. (plus "x"#.one_plus_x (v "x"))) in
-  Ex.show shadow_x_in_bound_x;
+  let shadow_x_in_bound_x = Syntax.("x" #. (plus "x"#.one_plus_x (v "x"))) in
+  Syntax.show shadow_x_in_bound_x;
   [%expect {| x.(x.(1 + x) + x) |}];
 
-  let bind_x_in_bound_y = Ex.("y" #. (plus "x"#.one_plus_x (v "y"))) in
-  Ex.show bind_x_in_bound_y;
+  let bind_x_in_bound_y = Syntax.("y" #. (plus "x"#.one_plus_x (v "y"))) in
+  Syntax.show bind_x_in_bound_y;
   [%expect {| y.(x.(1 + x) + y) |}];
 
   (* Bound variables allow alpha equivalence *)
-  assert (Ex.(equal shadow_x_in_bound_x bind_x_in_bound_y));
+  assert (Syntax.(equal shadow_x_in_bound_x bind_x_in_bound_y));
 
   (* Substitution respects shadowed scope *)
-  let subst1 = Ex.(shadow_x_in_bound_x |> subst "x" ~value:(num 3)) in
-  Ex.show subst1;
+  let subst1 = Syntax.(shadow_x_in_bound_x |> subst "x" ~value:(num 3)) in
+  Syntax.show subst1;
   [%expect {| (x.(1 + x) + 3) |}];
 
   (* Subsequent substitution works as expected *)
-  Ex.(subst1 |> subst "x" ~value:(num 4) |> show);
+  Syntax.(subst1 |> subst "x" ~value:(num 4) |> show);
   [%expect {| ((1 + 4) + 3) |}];
 
   (* Substitution does not mutate abts, so we can give alternate assignments to
      previously defined trees. *)
-  Ex.(subst1 |> subst "x" ~value:(num 99) |> show);
-  [%expect {| ((1 + 99) + 3) |}]
+  let fully_bound = Syntax.(subst1 |> subst "x" ~value:(num 99)) in
+  Syntax.show fully_bound;
+  [%expect {| ((1 + 99) + 3) |}];
+
+  Semantics.eval fully_bound |> Syntax.show;
+  [%expect {| 103 |}];
+
+  Semantics.eval Syntax.(subst "x" ~value:(num 4) bind_x_in_bound_y) |> Syntax.show;
+  [%expect {| y.(5 + y) |}];
