@@ -14,8 +14,8 @@
   "An OCaml library implementing abstract binding trees (ABTs)")
  (description
   "An ABT library consistent with the interface defined in Robert Harper's
-   'Practical Foundations for Programming Languages', but using immutable
-   pointers to simplify the implementation.")
+   'Practical Foundations for Programming Languages', using immutable
+   pointers to for varibale binding.")
  (depends
   (ppx_expect (and :with-test (>= v0.14.1)))
   (qcheck-core (and :with-test (>= 0.17)))))
