@@ -131,7 +131,7 @@ module Make (O : Operator) : sig
    *  The usual use case is for implementing the dynamics of the language whose
    *  statics are defined by the ABT.
    *
-   *  See for an example, see example/example.ml
+   *  For examples, see example/example.ml
    *
    *  @param var function to apply to variables
    *  @param bnd function to apply to bindings
