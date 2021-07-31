@@ -106,8 +106,12 @@ module Make (O : Operator) : sig
       see {!subst}). This only binds the free variables within the scope of an
       abstraction that ranges over the given (sub) abt [t]. *)
 
-  val subst : string -> value:t -> t -> t
-  (** [subst name ~value t] is a new abt obtained by substituting [value] for
+  val subst : Var.Binding.t -> value:t -> t -> t
+  (** [subst bnd ~value t] is a new ABT obtained by substituting [value] for
+      all variables bound to [bnd]. *)
+
+  val subst_var : string -> value:t -> t -> t
+  (** [subst_var name ~value t] is a new abt obtained by substituting [value] for
       the outermost scope of variables bound to [name] in [t] *)
 
   val to_string : t -> string
@@ -118,10 +122,21 @@ module Make (O : Operator) : sig
 
   val case :
        var:(Var.t -> 'a)
-    -> bnd:(Var.Binding.t -> t -> 'a)
+    -> bnd:(Var.Binding.t * t -> 'a)
     -> opr:(t O.t -> 'a)
     -> t
     -> 'a
+  (** Case analysis for eleminating the terms of the ABT
+   *
+   *  The usual use case is for implementing the dynamics of the language whose
+   *  statics are defined by the ABT.
+   *
+   *  See for an example, see example/example.ml
+   *
+   *  @param var function to apply to variables
+   *  @param bnd function to apply to bindings
+   *  @param opr function to apply to operators
+   *)
 
   val transform :
        var:(Var.t -> Var.t)
@@ -129,4 +144,6 @@ module Make (O : Operator) : sig
     -> opr:(t O.t -> t O.t)
     -> t
     -> t
+  (** Case anslysis for transforming ABT
+   *)
 end

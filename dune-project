@@ -5,6 +5,7 @@
 
 (source (github shonfeder/um-abt))
 (license MIT)
+
 (authors "Shon Feder")
 (maintainers "shon.feder@gmail.com")
 (documentation "https://shonfeder.github.io/um-abt")
@@ -19,4 +20,5 @@
    pointers to for varibale binding.")
  (depends
   (ppx_expect (and :with-test (>= v0.14.1)))
-  (qcheck-core (and :with-test (>= 0.17)))))
+  (ppx_deriving (and :with-test (>= 5.2.1)))
+  (qcheck (and :with-test (>= 0.17)))))

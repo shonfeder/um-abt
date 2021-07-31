@@ -147,33 +147,33 @@ module Make (O : Operator) = struct
     let scope = bind binding abt in
     T (Bnd (binding, scope))
 
-  let rec subst_val : Var.Binding.t -> value:t -> t -> t =
+  let rec subst : Var.Binding.t -> value:t -> t -> t =
    fun bnd ~value ->
     app_t @@ function
-    | Opr op     -> Opr (O.map (subst_val bnd ~value) op)
+    | Opr op     -> Opr (O.map (subst bnd ~value) op)
     | Bnd (b, t) ->
         (* As an optimization, we don't go any deeper if the variable is shadowed.
          * We could, safely, but there's no point. *)
         if String.equal (Var.Binding.name b) (Var.Binding.name bnd) then
           Bnd (b, t)
         else
-          Bnd (b, subst_val bnd ~value t)
+          Bnd (b, subst bnd ~value t)
     | Var v      ->
         if Var.is_bound_to v bnd then
           un_t value
         else
           Var v
 
-  let rec subst : string -> value:t -> t -> t =
+  let rec subst_var : string -> value:t -> t -> t =
    fun name ~value ->
     app_t @@ function
     | Var v      -> Var v
-    | Opr op     -> Opr (O.map (subst name ~value) op)
+    | Opr op     -> Opr (O.map (subst_var name ~value) op)
     | Bnd (b, t) ->
         if Var.Binding.name b = name then
-          un_t (subst_val b ~value t)
+          un_t (subst b ~value t)
         else
-          Bnd (b, subst name ~value t)
+          Bnd (b, subst_var name ~value t)
 
   let op a = T (Opr a)
 
@@ -182,7 +182,7 @@ module Make (O : Operator) = struct
   let case ~var ~bnd ~opr t =
     match un_t t with
     | Var v      -> var v
-    | Bnd (b, t) -> bnd b t
+    | Bnd (b, t) -> bnd (b, t)
     | Opr o      -> opr o
 
   let transform ~var ~bnd ~opr t =
@@ -233,7 +233,7 @@ let%expect_test "Example usage" =
     let rec reduce : t -> int option =
      fun t ->
       let var = Fun.const None in
-      let bnd _ = Fun.const None in
+      let bnd = Fun.const None in
       let opr =
         let open Operator in
         function
@@ -295,22 +295,23 @@ let%expect_test "Example usage" =
   assert (Syntax.(equal shadow_x_in_bound_x bind_x_in_bound_y));
 
   (* Substitution respects shadowed scope *)
-  let subst1 = Syntax.(shadow_x_in_bound_x |> subst "x" ~value:(num 3)) in
+  let subst1 = Syntax.(shadow_x_in_bound_x |> subst_var "x" ~value:(num 3)) in
   Syntax.show subst1;
   [%expect {| (x.(1 + x) + 3) |}];
 
   (* Subsequent substitution works as expected *)
-  Syntax.(subst1 |> subst "x" ~value:(num 4) |> show);
+  Syntax.(subst1 |> subst_var "x" ~value:(num 4) |> show);
   [%expect {| ((1 + 4) + 3) |}];
 
   (* Substitution does not mutate abts, so we can give alternate assignments to
      previously defined trees. *)
-  let fully_bound = Syntax.(subst1 |> subst "x" ~value:(num 99)) in
+  let fully_bound = Syntax.(subst1 |> subst_var "x" ~value:(num 99)) in
   Syntax.show fully_bound;
   [%expect {| ((1 + 99) + 3) |}];
 
   Semantics.eval fully_bound |> Syntax.show;
   [%expect {| 103 |}];
 
-  Semantics.eval Syntax.(subst "x" ~value:(num 4) bind_x_in_bound_y) |> Syntax.show;
-  [%expect {| y.(5 + y) |}];
+  Semantics.eval Syntax.(subst_var "x" ~value:(num 4) bind_x_in_bound_y)
+  |> Syntax.show;
+  [%expect {| y.(5 + y) |}]
