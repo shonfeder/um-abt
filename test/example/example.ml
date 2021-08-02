@@ -6,7 +6,7 @@ module Untyped_lambda_calculus = struct
       type 'a t =
         | App of 'a * 'a
         | Lam of 'a
-      [@@deriving eq, map, show]
+      [@@deriving eq, map, fold, show]
 
       let to_string : string t -> string = function
         | App (l, m) -> Printf.sprintf "(%s %s)" l m
@@ -82,6 +82,7 @@ module Arithmetic_expressions = struct
       type 'a t =
         | Num of int
         | Plus of 'a * 'a
+      [@@deriving fold]
 
       let equal eq a b =
         match (a, b) with

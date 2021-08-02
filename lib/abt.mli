@@ -71,6 +71,9 @@ module Var : sig
   val to_binding : t -> Binding.t option
   (** [to_binding v] is [Some bnd] iff [v] is bound to [bnd] via {!val:bind}.
       Otherwise it is [None]. *)
+
+  module Set : Set.S with type elt = t
+  module Map : Map.S with type key = t
 end
 
 module type Operator = sig
@@ -83,6 +86,8 @@ module type Operator = sig
   val to_string : string t -> string
 
   val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+
+  val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
 end
 
 module Make (O : Operator) : sig
@@ -91,6 +96,13 @@ module Make (O : Operator) : sig
 
   type t
   (** The type of ABT's constructed from the operators defind in [O] *)
+
+  val of_var : Var.t -> t
+  (** [of_var v] is a leaf in the ABT consisting of the variable [v] *)
+
+  val bind : Var.Binding.t -> t -> t
+  (** [bind bnd t] is a branch of the ABT, in which any free variables in [t]
+      matching the name of [bnd] are bound to [bnd].  *)
 
   val v : string -> t
   (** [v x] is a leaf in the ABT consisting of a variable named [x] *)
@@ -131,7 +143,7 @@ module Make (O : Operator) : sig
    *  The usual use case is for implementing the dynamics of the language whose
    *  statics are defined by the ABT.
    *
-   *  For examples, see example/example.ml
+   *  For examples, see test/example/example.ml
    *
    *  @param var function to apply to variables
    *  @param bnd function to apply to bindings
@@ -146,4 +158,10 @@ module Make (O : Operator) : sig
     -> t
   (** Case anslysis for transforming ABT
    *)
+
+  val free_vars : t -> Var.Set.t
+  (** [free_vars t] is the set of variables that are free in in [t] *)
+
+  val is_closed : t -> bool
+  (** [is_closed t] if [true] if there are no free variables in [t], otherwise false *)
 end

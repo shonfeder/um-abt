@@ -15,16 +15,22 @@ module Var = struct
     let equal a b = Int.equal (compare a b) 0
   end
 
-  type t =
-    | Free of string
-    | Bound of Binding.t
+  module T = struct
+    type t =
+      | Free of string
+      | Bound of Binding.t
 
-  let compare a b =
-    match (a, b) with
-    | Bound a, Bound b -> Binding.compare a b
-    | Free a, Free b   -> String.compare a b
-    | Free _, Bound _  -> 1 (* Free vars are greater than bound vars *)
-    | Bound _, Free _  -> -1
+    let compare a b =
+      match (a, b) with
+      | Bound a, Bound b -> Binding.compare a b
+      | Free a, Free b   -> String.compare a b
+      | Free _, Bound _  -> 1 (* Free vars are greater than bound vars *)
+      | Bound _, Free _  -> -1
+  end
+
+  module Set = Set.Make (T)
+  module Map = Map.Make (T)
+  include T
 
   let equal a b = Int.equal (compare a b) 0
 
@@ -73,6 +79,8 @@ module type Operator = sig
   val to_string : string t -> string
 
   val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+
+  val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
 end
 
 module Make (O : Operator) = struct
@@ -130,6 +138,8 @@ module Make (O : Operator) = struct
     | Var v        -> Var.to_string v
     | Bnd (b, abt) -> Var.(name @@ of_binding b) ^ "." ^ to_string abt
     | Opr op       -> O.map to_string op |> O.to_string
+
+  let of_var : Var.t -> t = fun v -> in_t (Var v)
 
   let rec bind : Var.Binding.t -> t -> t =
    fun bnd ->
@@ -194,4 +204,20 @@ module Make (O : Operator) = struct
     | Bnd (b, t) ->
         let b, t = bnd (b, t) in
         Bnd (b, t)
+
+  let free_vars : t -> Var.Set.t =
+   fun t ->
+    let rec free m =
+      case
+        ~var:(fun v ->
+          if Var.is_free v then
+            Var.Set.add v m
+          else
+            m)
+        ~bnd:(fun (_, t') -> free m t')
+        ~opr:(fun op -> O.fold free m op)
+    in
+    free Var.Set.empty t
+
+  let is_closed : t -> bool = fun t -> Var.Set.is_empty (free_vars t)
 end
