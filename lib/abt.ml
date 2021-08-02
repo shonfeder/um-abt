@@ -220,4 +220,6 @@ module Make (O : Operator) = struct
     free Var.Set.empty t
 
   let is_closed : t -> bool = fun t -> Var.Set.is_empty (free_vars t)
+
+  (* let unify : t -> t -> t *  *)
 end
