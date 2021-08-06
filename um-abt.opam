@@ -13,8 +13,9 @@ doc: "https://shonfeder.github.io/um-abt"
 bug-reports: "https://github.com/shonfeder/um-abt/issues"
 depends: [
   "dune" {>= "2.8"}
-  "ppx_expect" {with-test & >= "v0.14.1"}
-  "ppx_deriving" {with-test & >= "5.2.1"}
+  "bos" {>= "0.2.0"}
+  "ppx_expect" {>= "v0.14.1"}
+  "ppx_deriving" {>= "5.2.1"}
   "qcheck" {with-test & >= "0.17"}
   "odoc" {with-doc}
 ]

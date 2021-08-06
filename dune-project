@@ -19,6 +19,7 @@
    'Practical Foundations for Programming Languages', using immutable
    pointers to for varibale binding.")
  (depends
-  (ppx_expect (and :with-test (>= v0.14.1)))
-  (ppx_deriving (and :with-test (>= 5.2.1)))
+  (bos (>= 0.2.0))
+  (ppx_expect (>= v0.14.1))
+  (ppx_deriving (>= 5.2.1))
   (qcheck (and :with-test (>= 0.17)))))
