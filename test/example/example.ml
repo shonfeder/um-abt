@@ -1,3 +1,5 @@
+open! Bos_setup
+
 module Untyped_lambda_calculus = struct
   module Syntax = struct
     (** Syntax for the simply typed lambda calculus *)
@@ -73,6 +75,24 @@ module Untyped_lambda_calculus = struct
       @@ Semantics.eval
            (app (lam "z" (app (lam "x" x) z)) (app (lam "y" y) (lam "z" n)));
       [%expect {| (λz.n) |}]
+
+    let%expect_test "unification of Utlc" =
+      let open Syntax in
+
+      let exp1 = app (v "M") (app (lam "x" (lam "y" y)) z) in
+      let exp2 = app (lam "x" x) (v "N") in
+
+      show exp1; [%expect {| (M ((λx.(λy.y)) z)) |}];
+      show exp2; [%expect {| ((λx.x) N) |}];
+
+      let open Unification in
+      let unified_term, substitution = unify exp1 exp2 |> Result.get_ok in
+
+      show unified_term;
+      [%expect {| ((λx.x) ((λx.(λy.y)) z)) |}];
+
+      Subst.to_string substitution |> print_endline;
+      [%expect {| [ M -> (λx.x), N -> ((λx.(λy.y)) z) ] |}];
   end
 end
 
@@ -147,6 +167,8 @@ module Arithmetic_expressions = struct
       transform t ~var ~bnd ~opr
   end
 
+  let x, y, z = Syntax.(v "x", v "y", v "z")
+
   let one = Syntax.(num 1)
 
   let two = Syntax.(num 2)
@@ -208,4 +230,24 @@ module Arithmetic_expressions = struct
     Semantics.eval Syntax.(subst_var "x" ~value:(num 4) bind_x_in_bound_y)
     |> Syntax.show;
     [%expect {| y.(5 + y) |}]
+
+  let%expect_test "unifcation of expression language" =
+    let open Syntax in
+
+    let exp1 = plus x one in
+    let exp2 = plus (plus y two) y in
+
+    show exp1; [%expect {| (x + 1) |}];
+
+    show exp2; [%expect {| ((y + 2) + y) |}];
+
+    let open Unification in
+
+    let unified_term, substitution = unify exp1 exp2 |> Result.get_ok in
+
+    show unified_term;
+    [%expect{| ((1 + 2) + 1) |}];
+
+    Subst.to_string substitution |> print_endline;
+    [%expect{| [ x -> (y + 2), y -> 1 ] |}]
 end

@@ -164,4 +164,20 @@ module Make (O : Operator) : sig
 
   val is_closed : t -> bool
   (** [is_closed t] if [true] if there are no free variables in [t], otherwise false *)
+
+  module Unification : sig
+    module Subst : sig
+      type term = t
+      type t
+
+      val find : Var.t -> t -> term option
+
+      val bindings : t -> (Var.t * term) list
+
+      val to_string : t -> string
+    end
+    type error = [ `Unification of Var.t option * t * t ]
+
+    val unify : t -> t -> (t * Subst.t, error) Result.t
+  end
 end
