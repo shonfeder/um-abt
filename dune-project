@@ -20,7 +20,7 @@
    pointers to for varibale binding.")
  (depends
   (bos (>= 0.2.0))
-  (ppx-logs (>= 0.2.0))
+  (logs-ppx (>= 0.2.0))
   (ppx_expect (>= v0.14.1))
   (ppx_deriving (>= 5.2.1))
   (qcheck (and :with-test (>= 0.17)))))
