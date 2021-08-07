@@ -241,12 +241,6 @@ module Make (O : Operator) = struct
     | Var v -> Var.is_free v
     | _     -> false
 
-  (* let to_free_var : t -> Var.t option =
-   *  fun t ->
-   *   match un_t t with
-   *   | Var v when Var.is_free v -> Some v
-   *   | _ -> None *)
-
   let free_vars : t -> Var.Set.t =
    fun t ->
     let rec free m =
@@ -283,17 +277,15 @@ module Make (O : Operator) = struct
       type term = t
 
       type t = term ref Var.Map.t
-      (** The substitution maps free variables to mutable refs of optional terms.
-          When two free varaibles are assigned to be aliases, they simply share the same ref.
-          Therefore, assigning one variable, sufficies to assign all of it's aliases. *)
+      (** Substitution maps free variables to mutable refs.
+          When two free variables are assigned to be aliases, they simply share the same ref.
+          Therefore, assigning one variable, sufficies to assign all of its aliases. *)
 
       let empty = Var.Map.empty
 
       let find v s = Var.Map.find_opt v s |> Option.map (fun x -> !x)
 
       let bindings s = Var.Map.bindings s |> List.map (fun (v, t) -> (v, !t))
-
-      let term_to_string = to_string
 
       let to_string s =
         s
@@ -303,39 +295,30 @@ module Make (O : Operator) = struct
         |> String.concat ", "
         |> Printf.sprintf "[ %s ]"
 
-      (* Give the substitution for term, given the mapping s
+      (* Effect the substitution of free variables in a term, according to the sustitution s
        * - unassigned free var -> free var
        * - assigned free var -> assigned value
        * - compound term -> substitute into each of it's compounds
        * - bound var -> bound var *)
       let rec apply : t -> term -> term =
        fun s term ->
-        [%log
-          debug
-            "applying substitution %s to %s"
-            (to_string s)
-            (term_to_string term)];
-        let term' =
-          match un_t term with
-          | Bnd (b, t') -> Bnd (b, apply s t') |> in_t
-          | Opr o       -> O.map (apply s) o |> op
-          | Var v       ->
-              if Var.is_bound v then
-                of_var v
-              else
-                Var.Map.find_opt v s
-                |> Option.map (fun { contents } ->
-                       if not (is_free_var contents) then
-                         apply s contents
-                       else
-                         contents)
-                |> Option.value ~default:term
-        in
-        term'
+        match un_t term with
+        | Bnd (b, t') -> Bnd (b, apply s t') |> in_t
+        | Opr o       -> O.map (apply s) o |> op
+        | Var v       ->
+            if Var.is_bound v then
+              of_var v
+            else
+              Var.Map.find_opt v s
+              |> Option.map (fun { contents } ->
+                     if not (is_free_var contents) then
+                       apply s contents
+                     else
+                       contents)
+              |> Option.value ~default:term
 
       let add : t -> Var.t -> term -> (t, error) Result.t =
        fun s v term ->
-        [%log debug "current substitution %s" (to_string s)];
         if not (Var.is_free v) then
           failwith "Invalid argument: Subst.add with non free var "
         else
@@ -365,33 +348,26 @@ module Make (O : Operator) = struct
 
     module O = Operator_aux (O)
 
+    let ( let* ) = Result.bind
+
+    let rec build_substitution s_res a b =
+      let* s = s_res in
+      match (un_t a, un_t b) with
+      | Opr ao, Opr bo when O.same ao bo ->
+          O.fold2 build_substitution (Ok s) ao bo
+      | Bnd (_, a'), Bnd (_, b') -> build_substitution (Ok s) a' b'
+      | Var v, _ -> Subst.add s v b
+      | _, Var v -> Subst.add s v a
+      | _ -> Error (err a b)
+
     let unify : t -> t -> (t * Subst.t, error) Result.t =
      fun a b ->
-      let ( let* ) = Result.bind in
-      [%log debug "attempting unification %s = %s" (to_string a) (to_string b)];
-      let rec substitution s_res a b =
-        let* s = s_res in
-        match (un_t a, un_t b) with
-        | Opr ao, Opr bo when O.same ao bo -> O.fold2 substitution (Ok s) ao bo
-        | Bnd (_, a'), Bnd (_, b') -> substitution (Ok s) a' b'
-        | Var v, _ -> Subst.add s v b
-        | _, Var v -> Subst.add s v a
-        | _ -> Error (err a b)
-      in
-      let* subst = substitution (Ok Subst.empty) a b in
+      let* subst = build_substitution (Ok Subst.empty) a b in
       let a' = Subst.apply subst a in
       let b' = Subst.apply subst b in
       if equal a' b' then
         Ok (a', subst)
-      else (
-        [%log
-          debug
-            "unification of %s = %s failed after substitution: %s <> %s"
-            (to_string a)
-            (to_string b)
-            (to_string a')
-            (to_string b')];
-        Error (err a b)
-      )
+      else
+        Error (err a' b')
   end
 end

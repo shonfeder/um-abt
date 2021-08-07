@@ -73,6 +73,7 @@ module Var : sig
       Otherwise it is [None]. *)
 
   module Set : Set.S with type elt = t
+
   module Map : Map.S with type key = t
 end
 
@@ -138,10 +139,10 @@ module Make (O : Operator) : sig
     -> opr:(t O.t -> 'a)
     -> t
     -> 'a
-  (** Case analysis for eleminating the terms of the ABT
+  (** Case analysis for eleminating ABTs
    *
-   *  The usual use case is for implementing the dynamics of the language whose
-   *  statics are defined by the ABT.
+   *  The usual use is for implementing the semantics for the language whose
+   *  syntax is defined by the ABT.
    *
    *  For examples, see test/example/example.ml
    *
@@ -156,8 +157,7 @@ module Make (O : Operator) : sig
     -> opr:(t O.t -> t O.t)
     -> t
     -> t
-  (** Case anslysis for transforming ABT
-   *)
+  (** Case analysis for transforming ABT *)
 
   val free_vars : t -> Var.Set.t
   (** [free_vars t] is the set of variables that are free in in [t] *)
@@ -168,16 +168,33 @@ module Make (O : Operator) : sig
   module Unification : sig
     module Subst : sig
       type term = t
+      (** An alias for the type of the ABT for reference in the context of the substitution *)
+
       type t
+      (** Substitutions mapping free variables to terms *)
 
       val find : Var.t -> t -> term option
+      (** [find v s] is [Some term] if [v] is bound to [term] in the
+          substitution [s], otherwise it is [None]*)
 
       val bindings : t -> (Var.t * term) list
+      (** [bindings s] is a list of all the bindings in [s] *)
 
       val to_string : t -> string
     end
+
     type error = [ `Unification of Var.t option * t * t ]
+    (** The error returned when unification fails.
+
+        It includes:
+
+        - The variable that was being susbtituted for when a clash was found (if any)
+        - The two sub-terms that clashed, causing the unification failure *)
 
     val unify : t -> t -> (t * Subst.t, error) Result.t
+    (** [unify a b] is [Ok (union, substitution)] when [a] and [b] can be
+        unified into the term [union] and [substitution] is the most general
+        unifier. Otherwise it is [Error err)], for which, see {!type:error} *)
+
   end
 end
