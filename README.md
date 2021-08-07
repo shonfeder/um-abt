@@ -147,14 +147,13 @@ module Semantics = struct
 
   and apply : t -> t -> t =
    fun m n ->
-    let var _ = app m n in
-    (* [subst b ~value t] is t[x := value] for all variables [x] bound to [b] *)
-    let bnd (b, t) = subst b ~value:n t in
-    let opr = function
-      | Op.App (_, _) -> app m n
-      | Op.Lam bnd    -> eval (apply bnd n)
-    in
-    case ~var ~opr ~bnd m
+    m |> case
+        ~var:(Fun.const (app m n))
+        (* [subst b ~value t] is t[x := value] for all variables [x] bound to [b] *)
+        ~bnd:(fun (b, t) -> subst b ~value:n t)
+        ~opr:(function
+              | Op.App (_, _) -> app m n
+              | Op.Lam bnd    -> eval (apply bnd n))
 end
 ```
 
