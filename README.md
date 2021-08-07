@@ -9,14 +9,24 @@ properties defined in [Robert Harper](https://www.cs.cmu.edu/~rwh/pfpl/)'s
 
 This ABT library has two distinctive (afaik) features:
 
-1. It implements variable binding via *binding by reference*; i.e., variable
-   binding is implemented by way of "immutable" reference cells. I believe the
-   advantages of this approach to include:
+1. The library augments the binding functionality of the ABT approach with
+   general syntactic (perhaps later also equational) unification. We might
+   therefore describe this library as an implentation of *unifiable* abstract
+   binding trees (or UABTs). ABTs provide a generalized a reusable system for
+   variable binding for any language implemented in its terms. UABTs provide --
+   in addition -- a generalized, reusable system for (first-order, syntactic)
+   unification for any language implemented in *its* terms.
+
+   Unification is lovely and not used nearly enough, imo.
+
+2. It implements variable binding via (what we might call) *binding by
+   reference*; i.e., variable binding is implemented by way of "immutable"
+   reference cells. I believe the advantages of this approach to include:
 
    - a trivial algorithm for computing ɑ-equivalence
    - neutralization of the usual problem of renaming bound variables
    - the representation is easy to read, in contrast with De Bruijn indices,
-     and, even more important, there's no tedious book keeping required during
+     and, even more important, there's no tedious bookkeeping required during
      substitution.
    - the representation is trivial to inspect and manipulate, in contrast with
      [HOAS][]
@@ -24,16 +34,9 @@ This ABT library has two distinctive (afaik) features:
    However, I suspect this approach lacks the safety and formal elegance of HOAS
    or [NbE](https://en.wikipedia.org/wiki/Normalisation_by_evaluation). The
    approach used here is also dependent on OCaml's definition of physical
-   equality for `ref` cells, and on MLs ability to ensure that the references
-   are immutable via type abstraction.
+   equality to identify `ref` cells, and on MLs ability to ensure that the
+   references are immutable via type abstraction.
 
-2. The library augments the binding functionality of the ABT approach with
-   general syntactic (perhaps later also equational) unification. We might
-   therefore describe this library as an implentation of *unifiable* abstract
-   binding trees (or UABTs). ABTs provide a generalized a reusable system for
-   variable binding for any language implemented in its terms. UABTs provide --
-   in addition -- a generalized, reusable system for (first-order, syntactic)
-   unification for any language implented in its terms.
 
 [HOAS]: https://en.wikipedia.org/wiki/Higher-order_abstract_syntax
 
@@ -63,11 +66,11 @@ module Syntax = struct
 
   (* Define some convenient constructors *)
 
-  let app m n : t = 
+  let app m n : t =
     (* [op] makes an operator into an ABT *)
     op (App (m, n))
 
-  let lam x m : t = 
+  let lam x m : t =
     (* ["x" #. scope] binds all free variables named "x" in the [scope] *)
     op (Lam (x #. m))
 end
@@ -78,11 +81,11 @@ module Semantics = struct
   open Syntax
 
   let rec eval : t -> t =
-   fun t -> 
+   fun t ->
      (* The [case] function lets us deconstruct the ABT by case analysis,
-        whithout having to compromise on the guarantees we gain by keeping 
+        whithout having to compromise on the guarantees we gain by keeping
         its type abstract. *)
-     t |> case 
+     t |> case
         ~var:(Fun.const t) (* variables are left uninterpreted *)
         ~bnd:(Fun.const t) (* bindings are left uninterpreted *)
         ~opr:(function
@@ -113,18 +116,18 @@ let () =
   (* Equality between ABTs is defined in terms of ɑ-equivalence *)
   assert Syntax.(equal i (lam "y" y))
 
-let () = 
+let () =
   (* Here's what the combinators look like as strings *)
   assert (Syntax.to_string s = "(λx.(λy.(λz.((x y) (y z)))))");
   assert (Syntax.to_string k = "(λx.(λy.x))");
   assert (Syntax.to_string i = "(λx.x)")
-  
+
 
 let () =
   (* Let's fix our equality to be in terms of ɑ-equivalent ABTs *)
   let (=) = Syntax.equal in
-  (* So we can test some evaluations 
-     (See https://en.wikipedia.org/wiki/SKI_combinator_calculus#Informal_description 
+  (* So we can test some evaluations
+     (See https://en.wikipedia.org/wiki/SKI_combinator_calculus#Informal_description
      for  reference) *)
   let eval = Semantics.eval in
   let open Syntax in
@@ -142,12 +145,12 @@ let () =
   > The crucial idea is that any use of an identifier should be understood as a
   > reference, or abstract pointer, to its binding. (PFPL, 2nd ed., p. 6)
 
-- The implementation of ABTs in OCaml was informed by [Neel
-  Krishnaswami](https://www.cl.cam.ac.uk/~nk480/)'s [post on
-  ABTs](https://semantic-domain.blogspot.com/2015/03/abstract-binding-trees.html)
-  (but is substantialy different).
-
 - I discussed the idea of using `ref` cells to track binding scope in
   conversation with Callan McGill, and the representation of free and bound
   variables was influenced by his  post ["Locally
   Nameless"](https://boarders.github.io/posts/locally-nameless.html).
+
+- The implementation of ABTs in OCaml was informed by [Neel
+  Krishnaswami](https://www.cl.cam.ac.uk/~nk480/)'s [post on
+  ABTs](https://semantic-domain.blogspot.com/2015/03/abstract-binding-trees.html)
+  (but is substantialy different).
