@@ -42,12 +42,15 @@ This ABT library has two distinctive (afaik) features:
 
 ## Examples
 
+### The simply typed lambda calculus
+
 Here is a short example showing a naive implementation of the simply typed
-lambda calculus using um-abt:
+lambda calculus using `um-abt`.
+
+Let's start with the syntax:
 
 ```ocaml
 module Syntax = struct
-  (** Syntax for the simply typed lambda calculus *)
 
   (* Define the operators for your language *)
   module Op = struct
@@ -74,9 +77,49 @@ module Syntax = struct
     (* ["x" #. scope] binds all free variables named "x" in the [scope] *)
     op (Lam (x #. m))
 end
+```
 
+The functor `Abt.Make` is applied to an operator satisfying the `Operator`
+interface to produce a ABT representing the syntax of the simply typed lambda
+calculus.
+
+To make this more concrete, let's define the [SKI
+combinators](https://en.wikipedia.org/wiki/SKI_combinator_calculus) and see what
+they look like printed into the usual lambda calculus notation:
+
+```ocaml
+(* [v x] is a free variable named "x" *)
+let x, y, z = Syntax.(v "x", v "y", v "z")
+
+let s = Syntax.(lam "x" (lam "y" (lam "z" (app (app x y) (app y z)))))
+let k = Syntax.(lam "x" (lam "y" x))
+let i = Syntax.(lam "x" x)
+
+let () =
+  (* Here's what the combinators look like as strings *)
+  assert (Syntax.to_string s = "(λx.(λy.(λz.((x y) (y z)))))");
+  assert (Syntax.to_string k = "(λx.(λy.x))");
+  assert (Syntax.to_string i = "(λx.x)")
+```
+
+
+Note that equality between ABTs is defined in terms of ɑ-equivalence, so we can
+define the `i` using any variable, and it will be equivalent:
+
+```ocaml
+let () =
+  assert Syntax.(equal i (lam "y" y))
+```
+
+
+Now let's define our semantics, using the simple API provided by our generated
+`Syntax`. The key functions used are
+
+- `subst` to substitute values for bound variables, and
+- `case` to do case-based analysis of expressions in the ABT
+
+```ocaml
 module Semantics = struct
-  (** Semantics for the simply typed lambda calculus *)
 
   open Syntax
 
@@ -103,38 +146,30 @@ module Semantics = struct
     in
     case ~var ~opr ~bnd m
 end
+```
 
-(* [v x] is a free variable named "x" *)
-let x, y, z = Syntax.(v "x", v "y", v "z")
+Finally, let's illustrate the correctness of our implementation with a few
+simple evaluations, demonstrating that our SKI combinators behave as expected:
 
-(* We define the SKI combinators *)
-let s = Syntax.(lam "x" (lam "y" (lam "z" (app (app x y) (app y z)))))
-let k = Syntax.(lam "x" (lam "y" x))
-let i = Syntax.(lam "x" x)
-
-let () =
-  (* Equality between ABTs is defined in terms of ɑ-equivalence *)
-  assert Syntax.(equal i (lam "y" y))
-
-let () =
-  (* Here's what the combinators look like as strings *)
-  assert (Syntax.to_string s = "(λx.(λy.(λz.((x y) (y z)))))");
-  assert (Syntax.to_string k = "(λx.(λy.x))");
-  assert (Syntax.to_string i = "(λx.x)")
+``` ocaml
 
 
 let () =
   (* Let's fix our equality to be in terms of ɑ-equivalent ABTs *)
   let (=) = Syntax.equal in
-  (* So we can test some evaluations
-     (See https://en.wikipedia.org/wiki/SKI_combinator_calculus#Informal_description
-     for  reference) *)
   let eval = Semantics.eval in
   let open Syntax in
   assert (eval (app i x)                 = x);
   assert (eval (app (app k x) y)         = x);
   assert (eval (app (app (app s x) y) z) = (app (app x y) (app y z)))
 ```
+
+(See https://en.wikipedia.org/wiki/SKI_combinator_calculus#Informal_description
+for reference.)
+
+### Unification
+
+TODO
 
 ## Additional References
 
