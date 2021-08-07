@@ -1,0 +1,13 @@
+(test
+ (name readme)
+ (libraries um-abt ppx_deriving.runtime)
+ (preprocess (pps ppx_deriving.std)))
+
+(rule
+ (target readme.ml)
+ (deps
+  (package um-abt))
+ (action
+  (with-stdout-to
+   %{target}
+   (run ocaml-mdx pp %{dep:README.md}))))
