@@ -1,5 +1,17 @@
 # um-abt
 
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
+**Table of Contents**
+
+- [um-abt](#um-abt)
+    - [Features](#features)
+    - [Examples](#examples)
+        - [The simply typed lambda calculus](#the-simply-typed-lambda-calculus)
+        - [Unification](#unification)
+    - [Additional References](#additional-references)
+
+<!-- markdown-toc end -->
+
 An OCaml library implementing abstract binding trees (ABTs) exhibiting with the
 properties defined in [Robert Harper](https://www.cs.cmu.edu/~rwh/pfpl/)'s
 [Practical Foundations for Programming Labguages](https://www.cs.cmu.edu/~rwh/pfpl/)
