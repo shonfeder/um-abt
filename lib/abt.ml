@@ -1,5 +1,3 @@
-module Log = Logs
-
 module Var = struct
   module Binding = struct
     type t = string ref

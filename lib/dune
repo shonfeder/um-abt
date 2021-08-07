@@ -2,9 +2,9 @@
  (public_name um-abt)
  (name abt)
  (inline_tests)
- (libraries ppx_deriving.runtime logs)
+ (libraries ppx_deriving.runtime)
  (preprocess (pps logs-ppx ppx_expect ppx_deriving.std)))
 
-(env
-  (dev
-    (flags (:standard -warn-error -39-32))))
+; (env
+;   (dev
+;     (flags (:standard -warn-error -39-32))))
