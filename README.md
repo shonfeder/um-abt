@@ -64,7 +64,7 @@ Let's start with the syntax:
 ```ocaml
 module Syntax = struct
 
-  (* Define the operators for your language *)
+  (* Define the usual operators, but without the variables, since we get those free *)
   module Op = struct
       type 'a t =
       | App of 'a * 'a
@@ -79,10 +79,10 @@ module Syntax = struct
   (* Generate the syntax, which will include a type [t] of the ABTs over the operators **)
   include Abt.Make (Op)
 
-  (* Define some convenient constructors *)
+  (* Define some constructors to ensure correct construction *)
 
   let app m n : t =
-    (* [op] makes an operator into an ABT *)
+    (* [op] lifts an operator into an ABT *)
     op (App (m, n))
 
   let lam x m : t =
@@ -91,13 +91,13 @@ module Syntax = struct
 end
 ```
 
-The functor `Abt.Make` is applied to an operator satisfying the `Operator`
-interface to produce a ABT representing the syntax of the simply typed lambda
-calculus.
+When the functor `Abt.Make` is applied to the module satisfying the `Operator`
+interface, it produces an ABT representing the syntax of your language. In this
+case, we now have syntax for the simply typed lambda calculus.
 
-To make this more concrete, let's define the [SKI
+For a more perspicuous view of our produce, let's define the [SKI
 combinators](https://en.wikipedia.org/wiki/SKI_combinator_calculus) and see what
-they look like printed into the usual lambda calculus notation:
+they look like when printed in the usual notation:
 
 ```ocaml
 (* [v x] is a free variable named "x" *)
@@ -108,12 +108,10 @@ let k = Syntax.(lam "x" (lam "y" x))
 let i = Syntax.(lam "x" x)
 
 let () =
-  (* Here's what the combinators look like as strings *)
   assert (Syntax.to_string s = "(λx.(λy.(λz.((x y) (y z)))))");
   assert (Syntax.to_string k = "(λx.(λy.x))");
   assert (Syntax.to_string i = "(λx.x)")
 ```
-
 
 Note that equality between ABTs is defined in terms of ɑ-equivalence, so we can
 define the `i` using any variable, and it will be equivalent:
