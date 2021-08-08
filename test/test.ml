@@ -30,4 +30,10 @@ let utlc_tests =
       (fun (l, m, n) -> (l = m && m = n) ==> (l = n))
   ]
 
+(* let unification_tests =
+ *   let open Example.Arithmetic_expressions.Syntax in
+ *   let ( = ) = equal in
+ *   let x, y, z = (v "X", v "Y", v "Z") in
+ *   let  *)
+
 let () = QCheck_runner.run_tests_main utlc_tests

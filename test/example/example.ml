@@ -78,12 +78,13 @@ module Untyped_lambda_calculus = struct
 
     let%expect_test "unification of Utlc" =
       let open Syntax in
-
       let exp1 = app (v "M") (app (lam "x" (lam "y" y)) z) in
       let exp2 = app (lam "x" x) (v "N") in
 
-      show exp1; [%expect {| (M ((λx.(λy.y)) z)) |}];
-      show exp2; [%expect {| ((λx.x) N) |}];
+      show exp1;
+      [%expect {| (M ((λx.(λy.y)) z)) |}];
+      show exp2;
+      [%expect {| ((λx.x) N) |}];
 
       let open Unification in
       let unified_term, substitution = unify exp1 exp2 |> Result.get_ok in
@@ -92,7 +93,7 @@ module Untyped_lambda_calculus = struct
       [%expect {| ((λx.x) ((λx.(λy.y)) z)) |}];
 
       Subst.to_string substitution |> print_endline;
-      [%expect {| [ M -> (λx.x), N -> ((λx.(λy.y)) z) ] |}];
+      [%expect {| [ M -> (λx.x), N -> ((λx.(λy.y)) z) ] |}]
   end
 end
 
@@ -233,21 +234,62 @@ module Arithmetic_expressions = struct
 
   let%expect_test "unifcation of expression language" =
     let open Syntax in
-
     let exp1 = plus x one in
     let exp2 = plus (plus y two) y in
 
-    show exp1; [%expect {| (x + 1) |}];
+    show exp1;
+    [%expect {| (x + 1) |}];
 
-    show exp2; [%expect {| ((y + 2) + y) |}];
+    show exp2;
+    [%expect {| ((y + 2) + y) |}];
 
     let open Unification in
-
     let unified_term, substitution = unify exp1 exp2 |> Result.get_ok in
 
     show unified_term;
-    [%expect{| ((1 + 2) + 1) |}];
+    [%expect {| ((1 + 2) + 1) |}];
 
     Subst.to_string substitution |> print_endline;
-    [%expect{| [ x -> (y + 2), y -> 1 ] |}]
+    [%expect {| [ x -> (y + 2), y -> 1 ] |}]
+end
+
+module Prolog_terms = struct
+  module Syntax = struct
+    module Op = struct
+      type 'a t =
+        | Atom of string
+        | Compound of string * 'a list
+      [@@deriving eq, map, fold]
+
+      let to_string : string t -> string = function
+        | Atom a         -> a
+        | Compound (f, args) ->
+            Printf.sprintf "%s(%s)" f (String.concat ~sep:", " args)
+    end
+
+    include Abt.Make (Op)
+
+    let atom a = op (Atom a)
+    let comp f args = op (Compound (f, args))
+
+    let show t = to_string t |> print_endline
+  end
+
+  module Example = struct
+    open Syntax
+
+    let x, y = v "X", v "Y"
+
+    let a, b = atom "a", atom "b"
+
+    let%expect_test "Prolog terms" =
+      show (atom "a");
+      [%expect {| a |}];
+
+      show (comp "f" [a; x]);
+      [%expect {| f(a, X) |}];
+
+      show (comp "f" [y; comp "g" [a; b]]);
+      [%expect {| f(Y, g(a, b)) |}];
+  end
 end
