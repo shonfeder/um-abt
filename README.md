@@ -98,6 +98,19 @@ When the functor `Abt.Make` is applied to the module satisfying the `Operator`
 interface, it produces an ABT representing the syntax of your language. In this
 case, we now have syntax for the simply typed lambda calculus.
 
+The generated ABT will have the form
+
+```ocaml skip
+type t = private
+  | Var of Abt.Var.t
+  | Bnd of Abt.Var.binding * t
+  | Opr of t O.t
+```
+
+The `private` annotation indicates that you can use pattern matching to
+deconstruct the ABT, but you cannot construct new values without using the
+supplied combinators.
+
 For a more perspicuous view of our produce, let's define the [SKI
 combinators](https://en.wikipedia.org/wiki/SKI_combinator_calculus) and see what
 they look like when printed in the usual notation:
@@ -125,11 +138,8 @@ let () =
 ```
 
 
-Now let's define reduction, using the API provided by our generated `Syntax`.
-The key functions used are
-
-- `subst` to substitute values for bound variables, and
-- `case` to do case-based analysis of expressions in the ABT
+Now let's define reduction, using the API provided by our generated `Syntax`. We
+use pattern matching to j
 
 ```ocaml
 open Syntax
@@ -163,8 +173,9 @@ let () =
   assert (eval (app (app (app s x) y) z) = (app (app x y) (app y z)))
 ```
 
-(See https://en.wikipedia.org/wiki/SKI_combinator_calculus#Informal_description
-for reference.)
+(See
+<https://en.wikipedia.org/wiki/SKI_combinator_calculus#Informal_description> for
+reference.)
 
 ### Unification
 
