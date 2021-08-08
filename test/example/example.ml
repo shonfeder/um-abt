@@ -29,24 +29,19 @@ module Untyped_lambda_calculus = struct
   open Syntax
 
   let rec eval : t -> t =
-    fun t ->
-    let var = Fun.const t in
-    let bnd = Fun.const t in
-    let opr = function
-      | O.App (m, n) -> apply (eval m) (eval n)
-      | O.Lam abs    -> op (O.Lam abs)
-    in
-    case ~var ~bnd ~opr t
+   fun t ->
+    match t with
+    | Opr (App (m, n)) -> apply (eval m) (eval n)
+    | _                -> t
+   (* No other terms can be evaluated *)
 
   and apply : t -> t -> t =
-    fun m n ->
-    let var _ = app m n in
-    let bnd (b, t) = subst b ~value:n t in
-    let opr = function
-      | O.App (_, _) -> app m n
-      | O.Lam bnd    -> eval (apply bnd n)
-    in
-    case ~var ~opr ~bnd m
+   fun m n ->
+    match m with
+    | Bnd (bnd, t)  -> subst bnd ~value:n t
+    | Opr (Lam bnd) -> eval (apply bnd n)
+    | _             -> app m n
+  (* otherwise the application can't be evaluated *)
 
   module Examples = struct
     open Syntax
@@ -74,8 +69,7 @@ module Untyped_lambda_calculus = struct
       [%expect {| m |}];
 
       show
-      @@ eval
-           (app (lam "z" (app (lam "x" x) z)) (app (lam "y" y) (lam "z" n)));
+      @@ eval (app (lam "z" (app (lam "x" x) z)) (app (lam "y" y) (lam "z" n)));
       [%expect {| (λz.n) |}]
 
     let%expect_test "unification of Utlc" =
@@ -264,7 +258,7 @@ module Prolog = struct
       [@@deriving eq, map, fold]
 
       let to_string : string t -> string = function
-        | Atom a         -> a
+        | Atom a             -> a
         | Compound (f, args) ->
             Printf.sprintf "%s(%s)" f (String.concat ~sep:", " args)
     end
@@ -272,6 +266,7 @@ module Prolog = struct
     include Abt.Make (O)
 
     let atom a = op (Atom a)
+
     let comp f args = op (Compound (f, args))
 
     let show t = to_string t |> print_endline
@@ -280,18 +275,18 @@ module Prolog = struct
   module Example = struct
     open Syntax
 
-    let x, y = v "X", v "Y"
+    let x, y = (v "X", v "Y")
 
-    let a, b = atom "a", atom "b"
+    let a, b = (atom "a", atom "b")
 
     let%expect_test "Prolog terms" =
       show (atom "a");
       [%expect {| a |}];
 
-      show (comp "f" [a; x]);
+      show (comp "f" [ a; x ]);
       [%expect {| f(a, X) |}];
 
-      show (comp "f" [y; comp "g" [a; b]]);
-      [%expect {| f(Y, g(a, b)) |}];
+      show (comp "f" [ y; comp "g" [ a; b ] ]);
+      [%expect {| f(Y, g(a, b)) |}]
   end
 end

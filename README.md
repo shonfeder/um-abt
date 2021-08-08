@@ -142,13 +142,10 @@ let rec eval : t -> t =
 
 and apply : t -> t -> t =
   fun m n ->
-    m |> case
-      ~var:(Fun.const (app m n))
-      (* [subst b ~value t] is t[x := value] for all variables [x] bound to [b] *)
-      ~bnd:(fun (b, t) -> subst b ~value:n t)
-      ~opr:(function
-            | App (_, _) -> app m n
-            | Lam bnd    -> eval (apply bnd n))
+    match m with
+    | Bnd (bnd, t) -> subst bnd ~value:n t
+    | Opr (Lam bnd) -> eval (apply bnd n)
+    | _ -> app m n (* otherwise the application can't be evaluated *)
 ```
 
 Finally, let's illustrate the correctness of our implementation with a few
