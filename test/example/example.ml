@@ -4,20 +4,18 @@ module Untyped_lambda_calculus = struct
   module Syntax = struct
     (** Syntax for the simply typed lambda calculus *)
 
-    module Op = struct
+    module O = struct
       type 'a t =
         | App of 'a * 'a
         | Lam of 'a
-      [@@deriving eq, map, fold, show]
+      [@@deriving eq, map, fold]
 
       let to_string : string t -> string = function
         | App (l, m) -> Printf.sprintf "(%s %s)" l m
         | Lam abs    -> Printf.sprintf "(λ%s)" abs
     end
 
-    include Abt.Make (Op)
-
-    type op = t Op.t
+    include Abt.Make (O)
 
     let app m n = op (App (m, n))
 
@@ -35,8 +33,8 @@ module Untyped_lambda_calculus = struct
     let var = Fun.const t in
     let bnd = Fun.const t in
     let opr = function
-      | Op.App (m, n) -> apply (eval m) (eval n)
-      | Op.Lam abs    -> op (Op.Lam abs)
+      | O.App (m, n) -> apply (eval m) (eval n)
+      | O.Lam abs    -> op (O.Lam abs)
     in
     case ~var ~bnd ~opr t
 
@@ -45,8 +43,8 @@ module Untyped_lambda_calculus = struct
     let var _ = app m n in
     let bnd (b, t) = subst b ~value:n t in
     let opr = function
-      | Op.App (_, _) -> app m n (* Can't reduce any further *)
-      | Op.Lam bnd    -> eval (apply bnd n)
+      | O.App (_, _) -> app m n
+      | O.Lam bnd    -> eval (apply bnd n)
     in
     case ~var ~opr ~bnd m
 
@@ -103,7 +101,7 @@ end
 
 module Arithmetic_expressions = struct
   module Syntax = struct
-    module Op = struct
+    module O = struct
       type 'a t =
         | Num of int
         | Plus of 'a * 'a
@@ -125,7 +123,7 @@ module Arithmetic_expressions = struct
         | Plus (a, b) -> Printf.sprintf "(%s + %s)" a b
     end
 
-    include Abt.Make (Op)
+    include Abt.Make (O)
 
     let num n = op (Num n)
 
@@ -142,7 +140,7 @@ module Arithmetic_expressions = struct
       let var = Fun.const None in
       let bnd = Fun.const None in
       let opr =
-        let open Op in
+        let open O in
         function
         | Num n       -> Some n
         | Plus (a, b) ->
@@ -159,7 +157,7 @@ module Arithmetic_expressions = struct
       let var = Fun.id in
       let bnd (b, t) = (b, eval t) in
       let opr =
-        let open Op in
+        let open O in
         function
         | Num n       -> Num n
         | Plus (a, b) ->
@@ -259,7 +257,7 @@ end
 
 module Prolog = struct
   module Syntax = struct
-    module Op = struct
+    module O = struct
       type 'a t =
         | Atom of string
         | Compound of string * 'a list
@@ -271,7 +269,7 @@ module Prolog = struct
             Printf.sprintf "%s(%s)" f (String.concat ~sep:", " args)
     end
 
-    include Abt.Make (Op)
+    include Abt.Make (O)
 
     let atom a = op (Atom a)
     let comp f args = op (Compound (f, args))

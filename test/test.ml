@@ -38,8 +38,20 @@ let unification_tests =
   (* let ( = ) = equal in *)
   let x, y, z = (v "X", v "Y", v "Z") in
   let a, b, c = (atom "a", atom "b", atom "c") in
-  let terms = oneofl [comp "f" [x; a]; comp "g" [b; y; a]; comp "h" [x; y]; a; b; c; x; y; z] in
-  let term = oneof [Abt_gen.Prolog.arbitrary; terms] in
+  let terms =
+    oneofl
+      [ comp "f" [ x; a ]
+      ; comp "g" [ b; y; a ]
+      ; comp "h" [ x; y ]
+      ; a
+      ; b
+      ; c
+      ; x
+      ; y
+      ; z
+      ]
+  in
+  let term = oneof [ Abt_gen.Prolog.arbitrary; terms ] in
   let open Unification in
   [ property "unification -- reflexivity" term (fun t -> t =?= t)
   ; property "unification -- transitivity" (three term) (fun (a, b, c) ->
@@ -54,6 +66,8 @@ let unification_tests =
           Result.get_ok b_c
         in
         a =?= unification_of_a_and_b_and_c)
+  ; property "unification -- symmetry" (two term) (fun (a, b) ->
+        a =?= b ==> (b =?= a))
   ]
 
 let () = QCheck_runner.run_tests_main (utlc_tests @ unification_tests)

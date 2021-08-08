@@ -2,9 +2,6 @@ module Var : sig
   (** Variables, named by strings, which can be bound to a {!module:Binding} or
       left free. *)
 
-  type t
-  (** A varibale of type [t] is either free or bound. *)
-
   module Binding : sig
     (** A binding is an immutable reference to which a variable can be bound. *)
 
@@ -17,6 +14,10 @@ module Var : sig
 
     val name : t -> string
   end
+
+  type t = private
+    | Free of string
+    | Bound of Binding.t  (** A varibale of type [t] is either free or bound. *)
 
   val compare : t -> t -> int
   (** Bound variables are equal if they are have the same binding, free
@@ -91,11 +92,14 @@ module type Operator = sig
   val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
 end
 
-module Make (O : Operator) : sig
-  (** [Make (O)] is a module for constructing and manipulating ABTs for the
-      operators defined in [O]. *)
+module Make (Op : Operator) : sig
+(** [Make (Op)] is a module for constructing and manipulating ABTs for the
+    operators defined in [Op]. *)
 
-  type t
+  type t = private
+    | Var of Var.t
+    | Bnd of Var.Binding.t * t
+    | Opr of t Op.t
   (** The type of ABT's constructed from the operators defind in [O] *)
 
   val of_var : Var.t -> t
@@ -108,7 +112,7 @@ module Make (O : Operator) : sig
   val v : string -> t
   (** [v x] is a leaf in the ABT consisting of a variable named [x] *)
 
-  val op : t O.t -> t
+  val op : t Op.t -> t
   (** [op o] is a branch in the ABT consisting of the operator [o]  *)
 
   val ( #. ) : string -> t -> t
@@ -136,7 +140,7 @@ module Make (O : Operator) : sig
   val case :
        var:(Var.t -> 'a)
     -> bnd:(Var.Binding.t * t -> 'a)
-    -> opr:(t O.t -> 'a)
+    -> opr:(t Op.t -> 'a)
     -> t
     -> 'a
   (** Case analysis for eleminating ABTs
@@ -154,7 +158,7 @@ module Make (O : Operator) : sig
   val transform :
        var:(Var.t -> Var.t)
     -> bnd:(Var.Binding.t * t -> Var.Binding.t * t)
-    -> opr:(t O.t -> t O.t)
+    -> opr:(t Op.t -> t Op.t)
     -> t
     -> t
   (** Case analysis for transforming ABT *)
@@ -194,10 +198,10 @@ module Make (O : Operator) : sig
         unified into the term [union] and [substitution] is the most general
         unifier. Otherwise it is [Error err)], for which, see {!type:error} *)
 
-    val (=.=) : t -> t -> (t, error) Result.t
+    val ( =.= ) : t -> t -> (t, error) Result.t
     (** [a =.= b] is [unify a b] *)
 
-    val (=?=) : t -> t -> bool
+    val ( =?= ) : t -> t -> bool
     (** [a =?= b] is [true] iff [a =.= b] is an [Ok _] value *)
   end
 end

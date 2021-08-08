@@ -111,22 +111,11 @@ module Operator_aux (O : Operator) = struct
   include O
 end
 
-module Make (O : Operator) = struct
-  type abt =
+module Make (Op : Operator) = struct
+  type t =
     | Var of Var.t
     | Bnd of Var.Binding.t * t
-    | Opr of t O.t
-
-  and t = T of abt
-
-  (* Get the ABT inside of t *)
-  let un_t : t -> abt = fun (T abt) -> abt
-
-  (* Put the ABT inside of t *)
-  let in_t : abt -> t = fun abt -> T abt
-
-  (* Apply f to the ABT inside of t *)
-  let app_t : (abt -> abt) -> t -> t = fun f t -> un_t t |> f |> in_t
+    | Opr of t Op.t
 
   (* Alpha-equivalence is derived by checking that the structure of the
      two abts is the same.
@@ -151,8 +140,8 @@ module Make (O : Operator) = struct
     in
     let rec equal : Var.Binding.t Bindmap.t -> t -> t -> bool =
      fun bimap t t' ->
-      match (un_t t, un_t t') with
-      | Opr o, Opr o'            -> O.equal (equal bimap) o o'
+      match (t, t') with
+      | Opr o, Opr o'            -> Op.equal (equal bimap) o o'
       | Bnd (b, t), Bnd (b', t') ->
           (* Associate corresponding bindings in a bimap *)
           equal (Bindmap.add b b' bimap) t t'
@@ -162,17 +151,16 @@ module Make (O : Operator) = struct
     fun a b -> equal Bindmap.empty a b
 
   let rec to_string t =
-    un_t t |> function
+    t |> function
     | Var v        -> Var.to_string v
     | Bnd (b, abt) -> Var.(name @@ of_binding b) ^ "." ^ to_string abt
-    | Opr op       -> O.map to_string op |> O.to_string
+    | Opr op       -> Op.map to_string op |> Op.to_string
 
-  let of_var : Var.t -> t = fun v -> in_t (Var v)
+  let of_var : Var.t -> t = fun v -> Var v
 
   let rec bind : Var.Binding.t -> t -> t =
-   fun bnd ->
-    app_t @@ function
-    | Opr op     -> Opr (O.map (bind bnd) op)
+   fun bnd -> function
+    | Opr op     -> Opr (Op.map (bind bnd) op)
     | Bnd (b, t) -> Bnd (b, bind bnd t)
     | Var v      ->
     match Var.bind v bnd with
@@ -183,12 +171,11 @@ module Make (O : Operator) = struct
    fun name abt ->
     let binding : Var.Binding.t = Var.Binding.v name in
     let scope = bind binding abt in
-    T (Bnd (binding, scope))
+    Bnd (binding, scope)
 
   let rec subst : Var.Binding.t -> value:t -> t -> t =
-   fun bnd ~value ->
-    app_t @@ function
-    | Opr op     -> Opr (O.map (subst bnd ~value) op)
+   fun bnd ~value -> function
+    | Opr op     -> Opr (Op.map (subst bnd ~value) op)
     | Bnd (b, t) ->
         (* As an optimization, we don't go any deeper if the variable is shadowed.
          * We could, safely, but there's no point. *)
@@ -198,35 +185,30 @@ module Make (O : Operator) = struct
           Bnd (b, subst bnd ~value t)
     | Var v      ->
         if Var.is_bound_to v bnd then
-          un_t value
+          value
         else
           Var v
 
   let rec subst_var : string -> value:t -> t -> t =
-   fun name ~value ->
-    app_t @@ function
+   fun name ~value -> function
     | Var v      -> Var v
-    | Opr op     -> Opr (O.map (subst_var name ~value) op)
+    | Opr op     -> Opr (Op.map (subst_var name ~value) op)
     | Bnd (b, t) ->
         if Var.Binding.name b = name then
-          un_t (subst b ~value t)
+          subst b ~value t
         else
           Bnd (b, subst_var name ~value t)
 
-  let op a = T (Opr a)
+  let op a = Opr a
 
-  let v : string -> t = fun s -> T (Var (Var.v s))
+  let v : string -> t = fun s -> Var (Var.v s)
 
-  let case ~var ~bnd ~opr t =
-    match un_t t with
+  let case ~var ~bnd ~opr = function
     | Var v      -> var v
     | Bnd (b, t) -> bnd (b, t)
     | Opr o      -> opr o
 
-  let transform ~var ~bnd ~opr t =
-    in_t
-    @@
-    match un_t t with
+  let transform ~var ~bnd ~opr = function
     | Var v      -> Var (var v)
     | Opr o      -> Opr (opr o)
     | Bnd (b, t) ->
@@ -235,21 +217,17 @@ module Make (O : Operator) = struct
 
   let is_free_var : t -> bool =
    fun t ->
-    match un_t t with
-    | Var v -> Var.is_free v
-    | _     -> false
+    match t with
+    | Var (Free _) -> true
+    | _            -> false
 
   let free_vars : t -> Var.Set.t =
    fun t ->
-    let rec free m =
-      case
-        ~var:(fun v ->
-          if Var.is_free v then
-            Var.Set.add v m
-          else
-            m)
-        ~bnd:(fun (_, t') -> free m t')
-        ~opr:(fun op -> O.fold free m op)
+    let rec free fv = function
+      | Var (Free _ as v) -> Var.Set.add v fv
+      | Var (Bound _)     -> fv
+      | Bnd (_, t')       -> free fv t'
+      | Opr o             -> Op.fold free fv o
     in
     free Var.Set.empty t
 
@@ -314,9 +292,9 @@ module Make (O : Operator) = struct
             "applying substitution: %s %s"
             (term_to_string term)
             (to_string s)];
-        match un_t term with
-        | Bnd (b, t') -> Bnd (b, apply s t') |> in_t
-        | Opr o       -> O.map (apply s) o |> op
+        match term with
+        | Bnd (b, t') -> Bnd (b, apply s t')
+        | Opr o       -> Op.map (apply s) o |> op
         | Var v       ->
             if Var.is_bound v then
               of_var v
@@ -346,7 +324,7 @@ module Make (O : Operator) = struct
         ) else if not (Var.is_free v) then
           failwith "Invalid argument: Subst.add with non free var "
         else
-          match un_t term with
+          match term with
           | Bnd (_, _)
           | Opr _ -> (
               Var.Map.find_opt v s |> function
@@ -370,15 +348,15 @@ module Make (O : Operator) = struct
               Ok (Var.Map.add v ref_var s |> Var.Map.add v' ref_var)
     end
 
-    module O = Operator_aux (O)
+    module Op = Operator_aux (Op)
 
     let ( let* ) = Result.bind
 
     let rec build_substitution s_res a b =
       let* s = s_res in
-      match (un_t a, un_t b) with
-      | Opr ao, Opr bo when O.same ao bo ->
-          O.fold2 build_substitution (Ok s) ao bo
+      match (a, b) with
+      | Opr ao, Opr bo when Op.same ao bo ->
+          Op.fold2 build_substitution (Ok s) ao bo
       | Bnd (_, a'), Bnd (_, b') -> build_substitution (Ok s) a' b'
       | Var v, _ -> Subst.add s v b
       | _, Var v -> Subst.add s v a

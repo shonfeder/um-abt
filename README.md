@@ -68,7 +68,7 @@ Let's start with the syntax:
 module Syntax = struct
 
   (* Define the usual operators, but without the variables, since we get those free *)
-  module Op = struct
+  module O = struct
       type 'a t =
       | App of 'a * 'a
       | Lam of 'a
@@ -80,7 +80,7 @@ module Syntax = struct
   end
 
   (* Generate the syntax, which will include a type [t] of the ABTs over the operators **)
-  include Abt.Make (Op)
+  include Abt.Make (O)
 
   (* Define some constructors to ensure correct construction *)
 
@@ -125,39 +125,30 @@ let () =
 ```
 
 
-Now let's define our semantics, using the simple API provided by our generated
-`Syntax`. The key functions used are
+Now let's define reduction, using the API provided by our generated `Syntax`.
+The key functions used are
 
 - `subst` to substitute values for bound variables, and
 - `case` to do case-based analysis of expressions in the ABT
 
 ```ocaml
-module Semantics = struct
+open Syntax
 
-  open Syntax
+let rec eval : t -> t =
+  fun t ->
+    match t with
+    | Opr (App (m, n)) -> apply (eval m) (eval n)
+    | _ -> t (* No other terms can be evaluated *)
 
-  let rec eval : t -> t =
-   fun t ->
-     (* The [case] function lets us deconstruct the ABT by case analysis,
-        whithout having to compromise on the guarantees we gain by keeping
-        its type abstract. *)
-     t |> case
-        ~var:(Fun.const t) (* variables are left uninterpreted *)
-        ~bnd:(Fun.const t) (* bindings are left uninterpreted *)
-        ~opr:(function
-              | Op.App (m, n) -> apply (eval m) (eval n)
-              | Op.Lam abs    -> op (Op.Lam abs))
-
-  and apply : t -> t -> t =
-   fun m n ->
+and apply : t -> t -> t =
+  fun m n ->
     m |> case
-        ~var:(Fun.const (app m n))
-        (* [subst b ~value t] is t[x := value] for all variables [x] bound to [b] *)
-        ~bnd:(fun (b, t) -> subst b ~value:n t)
-        ~opr:(function
-              | Op.App (_, _) -> app m n
-              | Op.Lam bnd    -> eval (apply bnd n))
-end
+      ~var:(Fun.const (app m n))
+      (* [subst b ~value t] is t[x := value] for all variables [x] bound to [b] *)
+      ~bnd:(fun (b, t) -> subst b ~value:n t)
+      ~opr:(function
+            | App (_, _) -> app m n
+            | Lam bnd    -> eval (apply bnd n))
 ```
 
 Finally, let's illustrate the correctness of our implementation with a few
@@ -167,9 +158,8 @@ simple evaluations, demonstrating that our SKI combinators behave as expected:
 
 
 let () =
-  (* Let's fix our equality to be in terms of ɑ-equivalent ABTs *)
+  (* Let equality be ɑ-equivalence on our syntax *)
   let (=) = Syntax.equal in
-  let eval = Semantics.eval in
   let open Syntax in
   assert (eval (app i x)                 = x);
   assert (eval (app (app k x) y)         = x);
