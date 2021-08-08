@@ -33,7 +33,7 @@ This ABT library has two distinctive (afaik) features:
 
 2. It implements variable binding via (what we might call) *binding by
    reference*; i.e., variable binding is implemented by way of "immutable"
-   reference cells. I believe the advantages of this approach to include:
+   reference cells. I suspect the advantages of this approach to include:
 
    - a trivial algorithm for computing ɑ-equivalence
    - neutralization of the usual problem of renaming bound variables
@@ -43,8 +43,11 @@ This ABT library has two distinctive (afaik) features:
    - the representation is trivial to inspect and manipulate, in contrast with
      [HOAS][]
 
-   However, I suspect this approach lacks the safety and formal elegance of HOAS
-   or [NbE](https://en.wikipedia.org/wiki/Normalisation_by_evaluation). The
+   Note that I have not done any rigorous analysis or other work to test these
+   suspicions. 
+
+   I also suspect this approach lacks the safety and formal elegance of HOAS or
+   [NbE](https://en.wikipedia.org/wiki/Normalisation_by_evaluation). The
    approach used here is also dependent on OCaml's definition of physical
    equality to identify `ref` cells, and on MLs ability to ensure that the
    references are immutable via type abstraction.
