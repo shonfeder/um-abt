@@ -183,18 +183,21 @@ module Make (O : Operator) : sig
       val to_string : t -> string
     end
 
-    type error = [ `Unification of Var.t option * t * t ]
-    (** The error returned when unification fails.
-
-        It includes:
-
-        - The variable that was being susbtituted for when a clash was found (if any)
-        - The two sub-terms that clashed, causing the unification failure *)
+    type error =
+      [ `Unification of Var.t option * t * t
+      | `Occurs of Var.t * t
+      ]
+    (** Errors returned when unification fails *)
 
     val unify : t -> t -> (t * Subst.t, error) Result.t
     (** [unify a b] is [Ok (union, substitution)] when [a] and [b] can be
         unified into the term [union] and [substitution] is the most general
         unifier. Otherwise it is [Error err)], for which, see {!type:error} *)
 
+    val (=.=) : t -> t -> (t, error) Result.t
+    (** [a =.= b] is [unify a b] *)
+
+    val (=?=) : t -> t -> bool
+    (** [a =?= b] is [true] iff [a =.= b] is an [Ok _] value *)
   end
 end

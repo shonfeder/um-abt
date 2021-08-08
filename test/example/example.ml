@@ -253,7 +253,7 @@ module Arithmetic_expressions = struct
     [%expect {| [ x -> (y + 2), y -> 1 ] |}]
 end
 
-module Prolog_terms = struct
+module Prolog = struct
   module Syntax = struct
     module Op = struct
       type 'a t =
