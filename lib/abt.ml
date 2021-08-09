@@ -203,6 +203,13 @@ module Make (Op : Operator) = struct
 
   let v : string -> t = fun s -> Var (Var.v s)
 
+  let rec subterms : t -> t list =
+   fun t ->
+    match t with
+    | Var _       -> [ t ]
+    | Bnd (_, t') -> t :: subterms t'
+    | Opr o       -> t :: Op.fold (fun ts t' -> subterms t' @ ts) [] o
+
   let case ~var ~bnd ~opr = function
     | Var v      -> var v
     | Bnd (b, t) -> bnd (b, t)

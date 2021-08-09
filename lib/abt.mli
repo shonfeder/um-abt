@@ -163,6 +163,9 @@ module Make (Op : Operator) : sig
     -> t
   (** Case analysis for transforming ABT *)
 
+  val subterms : t -> t list
+  (** [subterms t] is a list of all the subterms in [t], including [t] itself *)
+
   val free_vars : t -> Var.Set.t
   (** [free_vars t] is the set of variables that are free in in [t] *)
 
