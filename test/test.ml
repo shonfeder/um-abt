@@ -33,9 +33,7 @@ let utlc_tests =
   ]
 
 let unification_tests =
-  (* Logs.set_level (Some Logs.Debug); *)
   let open Example.Prolog.Syntax in
-  (* let ( = ) = equal in *)
   let x, y, z = (v "X", v "Y", v "Z") in
   let a, b, c = (atom "a", atom "b", atom "c") in
   let terms =
@@ -58,12 +56,12 @@ let unification_tests =
   in
   let open Unification in
   [ property "unification -- reflexivity" term (fun t -> t =?= t)
+  ; property "unification -- symmetry" (two term) (fun (a, b) ->
+        a =?= b ==> (b =?= a))
   ; property "unification -- transitivity" (three term) (fun (a, b, c) ->
         let a_b = a =.= b |> assume_unified in
         let b_c = a_b =.= c |> assume_unified in
         a =?= b_c)
-  ; property "unification -- symmetry" (two term) (fun (a, b) ->
-        a =?= b ==> (b =?= a))
   ; property
       "unification -- free variables unify (unless occurs check fails)"
       (pair Abt_gen.Var.arbitrary_free term)
