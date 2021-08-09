@@ -65,22 +65,48 @@ let unification_tests =
   ; property "unification -- symmetry" (two term) (fun (a, b) ->
         a =?= b ==> (b =?= a))
   ; property
-      "unification -- with free variable"
+      "unification -- free variables unify (unless occurs check fails)"
       (pair Abt_gen.Var.arbitrary_free term)
       (fun (v, t) ->
         match of_var v =.= t with
-        (* Either the unification succeeds *)
+        (* If the unification succeeds *)
         | Ok t' -> (
             match t with
-            (* and if the rhs term was also a free var, than the unified term is equal to lhs variable *)
+            (* and the rhs term was also a free var, then the unified term is equal to the lhs variable. *)
             | Var (Free _) -> equal t' (of_var v)
-            (* or the unified term is equal to the rhs term *)
+            (* Otherwise, the unified term is equal to the rhs term. *)
             | _ -> equal t t')
-        (* or the unification failes, due to the occurs check *)
+        (*  If the unification failes due to the occurs check *)
         | Error (`Occurs (v', t')) ->
-            (* In which case the error must return the free lhs free variable and the rhs term *)
+            (* then the error must return the free lhs free variable and the rhs term *)
             Abt.Var.equal v v' && equal t t'
+        (* Any other failure is an incorrect *)
         | _ -> false)
+  ; property
+      "unification -- all free vars in terms are bound to subterms in \
+       unification"
+      (two term)
+      (fun (a, b) ->
+        let u, substitution = unify a b |> assume_unified in
+        let u_free_vars = free_vars u in
+        let u_subterms = subterms u in
+
+        let bound_a_vars = Abt.Var.Set.diff (free_vars a) u_free_vars in
+        let all_bound_free_vars_in_a_are_bound_to_subterms_of_unified =
+          bound_a_vars
+          |> Abt.Var.Set.for_all (fun v ->
+                 List.mem (Subst.find v substitution |> Option.get) u_subterms)
+        in
+
+        let bound_b_vars = Abt.Var.Set.diff (free_vars b) u_free_vars in
+        let all_bound_free_vars_in_b_are_bound_to_subterms_of_unified =
+          bound_b_vars
+          |> Abt.Var.Set.for_all (fun v ->
+                 List.mem (Subst.find v substitution |> Option.get) u_subterms)
+        in
+
+        all_bound_free_vars_in_a_are_bound_to_subterms_of_unified
+        && all_bound_free_vars_in_b_are_bound_to_subterms_of_unified)
   ]
 
 let () = QCheck_runner.run_tests_main (utlc_tests @ unification_tests)
