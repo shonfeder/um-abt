@@ -353,27 +353,34 @@ module Make (Op : Operator) = struct
           | None, None ->
               let ref_var = ref (of_var v) in
               Ok (Var.Map.add v ref_var s |> Var.Map.add v' ref_var)
+
+      let ( let* ) = Result.bind
+
+      module Op = Operator_aux (Op)
+
+      (* Caution: There be mutability in here. Never allow a mutable substitution to escape! *)
+      let build a b =
+        let rec aux s_res a b =
+          let* s = s_res in
+          match (a, b) with
+          | Opr ao, Opr bo when Op.same ao bo -> Op.fold2 aux (Ok s) ao bo
+          | Bnd (_, a'), Bnd (_, b') -> aux (Ok s) a' b'
+          | Var v, _ -> add s v b
+          | _, Var v -> add s v a
+          | _ -> Error (fail a b)
+        in
+        let* subst = aux (Ok empty) a b in
+        Var.Map.iter (fun _ cell -> cell := apply subst !cell) subst;
+        Ok (subst)
     end
 
-    module Op = Operator_aux (Op)
-
     let ( let* ) = Result.bind
-
-    let rec build_substitution s_res a b =
-      let* s = s_res in
-      match (a, b) with
-      | Opr ao, Opr bo when Op.same ao bo ->
-          Op.fold2 build_substitution (Ok s) ao bo
-      | Bnd (_, a'), Bnd (_, b') -> build_substitution (Ok s) a' b'
-      | Var v, _ -> Subst.add s v b
-      | _, Var v -> Subst.add s v a
-      | _ -> Error (fail a b)
 
     let unify : t -> t -> (t * Subst.t, error) Result.t =
      fun a b ->
       let result =
         [%log debug "start: %s =.= %s" (to_string a) (to_string b)];
-        let* subst = build_substitution (Ok Subst.empty) a b in
+        let* subst = Subst.build a b in
         let a' = Subst.apply subst a in
         let b' = Subst.apply subst b in
         if equal a' b' then

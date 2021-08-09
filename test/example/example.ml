@@ -246,7 +246,7 @@ module Arithmetic_expressions = struct
     [%expect {| ((1 + 2) + 1) |}];
 
     Subst.to_string substitution |> print_endline;
-    [%expect {| [ x -> (y + 2), y -> 1 ] |}]
+    [%expect {| [ x -> (1 + 2), y -> 1 ] |}]
 end
 
 module Prolog = struct
