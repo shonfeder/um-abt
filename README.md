@@ -109,7 +109,9 @@ type t = private
 
 The `private` annotation indicates that you can use pattern matching to
 deconstruct the ABT, but you cannot construct new values without using the
-supplied combinators.
+supplied combinators. This ensures essential invariants are preserved. E.g., it
+is impossible to construct a binding in which the expected variables are not
+bound in the term in scope.
 
 For a more perspicuous view of our produce, let's define the [SKI
 combinators](https://en.wikipedia.org/wiki/SKI_combinator_calculus) and see what
