@@ -11,9 +11,15 @@ module Var = struct
     let open QCheck.Gen in
     map Abt.Var.Binding.v var_name_gen
 
+  let fvar_gen =
+    let open QCheck.Gen in
+    map Abt.Var.v var_name_gen
+
   let var_gen =
     let open QCheck.Gen in
-    oneof [ map Abt.Var.v var_name_gen; map Abt.Var.of_binding binding_gen ]
+    oneof [ fvar_gen; map Abt.Var.of_binding binding_gen ]
+
+  let arbitrary_free = QCheck.make ~print:Abt.Var.to_string fvar_gen
 
   let arbitrary = QCheck.make ~print:Abt.Var.to_string var_gen
 end
@@ -61,7 +67,8 @@ module Prolog = struct
                  [ (1, map atom Var.var_name_gen)
                  ; (1, map v Var.var_name_gen_caps)
                  ]
-           | n -> map2 comp Var.var_name_gen (list_size (0 -- 5) (self (n / 10))))
+           | n ->
+               map2 comp Var.var_name_gen (list_size (0 -- 5) (self (n / 10))))
 
   let rec shrink t =
     let open QCheck.Iter in

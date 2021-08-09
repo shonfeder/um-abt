@@ -42,7 +42,7 @@ let unification_tests =
     oneofl
       [ comp "f" [ x; a ]
       ; comp "g" [ b; y; a ]
-      ; comp "h" [ x; y ]
+      ; comp "h" [ x; comp "i" [ y; a; z ] ]
       ; a
       ; b
       ; c
@@ -52,22 +52,35 @@ let unification_tests =
       ]
   in
   let term = oneof [ Abt_gen.Prolog.arbitrary; terms ] in
+  let assume_unified result =
+    assume (Result.is_ok result);
+    Result.get_ok result
+  in
   let open Unification in
   [ property "unification -- reflexivity" term (fun t -> t =?= t)
   ; property "unification -- transitivity" (three term) (fun (a, b, c) ->
-        let a_b = a =.= b in
-        let unification_of_a_and_b =
-          assume (Result.is_ok a_b);
-          Result.get_ok a_b
-        in
-        let b_c = unification_of_a_and_b =.= c in
-        let unification_of_a_and_b_and_c =
-          assume Result.(is_ok b_c);
-          Result.get_ok b_c
-        in
-        a =?= unification_of_a_and_b_and_c)
+        let a_b = a =.= b |> assume_unified in
+        let b_c = a_b =.= c |> assume_unified in
+        a =?= b_c)
   ; property "unification -- symmetry" (two term) (fun (a, b) ->
         a =?= b ==> (b =?= a))
+  ; property
+      "unification -- with free variable"
+      (pair Abt_gen.Var.arbitrary_free term)
+      (fun (v, t) ->
+        match of_var v =.= t with
+        (* Either the unification succeeds *)
+        | Ok t' -> (
+            match t with
+            (* and if the rhs term was also a free var, than the unified term is equal to lhs variable *)
+            | Var (Free _) -> equal t' (of_var v)
+            (* or the unified term is equal to the rhs term *)
+            | _ -> equal t t')
+        (* or the unification failes, due to the occurs check *)
+        | Error (`Occurs (v', t')) ->
+            (* In which case the error must return the free lhs free variable and the rhs term *)
+            Abt.Var.equal v v' && equal t t'
+        | _ -> false)
   ]
 
 let () = QCheck_runner.run_tests_main (utlc_tests @ unification_tests)
