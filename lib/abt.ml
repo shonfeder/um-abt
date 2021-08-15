@@ -358,7 +358,7 @@ module Make (Op : Operator) = struct
 
       module Op = Operator_aux (Op)
 
-      (* Caution: There be mutability in here. Never allow a mutable substitution to escape! *)
+      (* Caution: Here be mutability! Never allow a mutable substitution to escape! *)
       let build a b =
         let rec aux s_res a b =
           let* s = s_res in
@@ -379,7 +379,7 @@ module Make (Op : Operator) = struct
     let unify : t -> t -> (t * Subst.t, error) Result.t =
      fun a b ->
       let result =
-        [%log debug "start: %s =.= %s" (to_string a) (to_string b)];
+        [%log debug "unification start: %s =.= %s" (to_string a) (to_string b)];
         let* subst = Subst.build a b in
         let a' = Subst.apply subst a in
         let b' = Subst.apply subst b in
@@ -392,19 +392,19 @@ module Make (Op : Operator) = struct
       | Ok (u, _) ->
           [%log
             debug
-              "success: %s =.= %s => %s"
+              "unification success: %s =.= %s => %s"
               (to_string a)
               (to_string b)
               (to_string u)];
           result
       | Error (`Occurs (v, t)) ->
           [%log
-            debug "failure: %s occurs in %s" (Var.to_string v) (to_string t)];
+            debug "unification failure: %s occurs in %s" (Var.to_string v) (to_string t)];
           result
       | Error (`Unification (_, a', b')) ->
           [%log
             debug
-              "failure: %s =.= %s => %s <> %s "
+              "unification failure: %s =.= %s => %s <> %s "
               (to_string a)
               (to_string b)
               (to_string a')
