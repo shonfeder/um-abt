@@ -32,16 +32,16 @@ module Untyped_lambda_calculus = struct
    fun t ->
     match t with
     | Opr (App (m, n)) -> apply (eval m) (eval n)
+    (* No other terms can be evaluated *)
     | _                -> t
-   (* No other terms can be evaluated *)
 
   and apply : t -> t -> t =
    fun m n ->
     match m with
     | Bnd (bnd, t)  -> subst bnd ~value:n t
     | Opr (Lam bnd) -> eval (apply bnd n)
+    (* otherwise the application can't be evaluated *)
     | _             -> app m n
-  (* otherwise the application can't be evaluated *)
 
   module Examples = struct
     open Syntax
@@ -89,7 +89,17 @@ module Untyped_lambda_calculus = struct
       [%expect {| ((λx.x) ((λx.(λy.y)) z)) |}];
 
       Subst.to_string substitution |> print_endline;
-      [%expect {| [ M -> (λx.x), N -> ((λx.(λy.y)) z) ] |}]
+      [%expect {| [ M -> (λx.x), N -> ((λx.(λy.y)) z) ] |}];
+
+      (* Alpha equivalent terms unify *)
+      let s = lam "x" (lam "y" x) in
+      let s' = lam "y" (lam "x" y) in
+
+      equal s s' |> Bool.to_string |> print_endline;
+      [%expect {|true|}];
+
+      s =?= s' |> Bool.to_string |> print_endline;
+      [%expect {|true|}];
   end
 end
 
@@ -228,7 +238,7 @@ module Arithmetic_expressions = struct
     |> Syntax.show;
     [%expect {| y.(5 + y) |}]
 
-  let%expect_test "unifcation of expression language" =
+  let%expect_test "unification of expression language" =
     let open Syntax in
     let exp1 = plus x one in
     let exp2 = plus (plus y two) y in

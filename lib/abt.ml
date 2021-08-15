@@ -365,13 +365,16 @@ module Make (Op : Operator) = struct
           match (a, b) with
           | Opr ao, Opr bo when Op.same ao bo -> Op.fold2 aux (Ok s) ao bo
           | Bnd (_, a'), Bnd (_, b') -> aux (Ok s) a' b'
-          | Var v, _ -> add s v b
-          | _, Var v -> add s v a
+          | Var (Free _ as v), _ -> add s v b
+          | _, Var (Free _ as v) -> add s v a
+          | Var (Bound _), Var (Bound _) ->
+              (* We can't decide anything about bound variables at this point, assume they are ok *)
+              Ok s
           | _ -> Error (fail a b)
         in
         let* subst = aux (Ok empty) a b in
         Var.Map.iter (fun _ cell -> cell := apply subst !cell) subst;
-        Ok (subst)
+        Ok subst
     end
 
     let ( let* ) = Result.bind
@@ -399,7 +402,10 @@ module Make (Op : Operator) = struct
           result
       | Error (`Occurs (v, t)) ->
           [%log
-            debug "unification failure: %s occurs in %s" (Var.to_string v) (to_string t)];
+            debug
+              "unification failure: %s occurs in %s"
+              (Var.to_string v)
+              (to_string t)];
           result
       | Error (`Unification (_, a', b')) ->
           [%log

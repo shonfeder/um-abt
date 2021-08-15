@@ -44,7 +44,7 @@ This ABT library has two distinctive (afaik) features:
      [HOAS][]
 
    Note that I have not done any rigorous analysis or other work to test these
-   suspicions. 
+   suspicions. Feedback or correction on these points would be welcome.
 
    I also suspect this approach lacks the safety and formal elegance of HOAS or
    [NbE](https://en.wikipedia.org/wiki/Normalisation_by_evaluation). The
@@ -57,12 +57,34 @@ This ABT library has two distinctive (afaik) features:
 
 ## Examples
 
+The following short examples help illustrate use of the library. For more
+extensive examples, see
+[test/example/example.ml](https://github.com/shonfeder/um-abt/blob/trunk/test/example/example.ml).
+
 ### The simply typed lambda calculus
 
 Here is a short example showing a naive implementation of the simply typed
 lambda calculus using `um-abt`.
 
-Let's start with the syntax:
+ABTs representing the syntax of a language are produced by applying the
+`Abt.Make` functor to a module implementing the `Operator` specification.
+
+The generated ABT will have the following form, where `module O : Operator`:
+
+```ocaml skip
+type t = private
+  | Var of Abt.Var.t
+  | Bnd of Abt.Var.binding * t
+  | Opr of t O.t
+```
+
+Most of the values required by the `Operator` specification can be derived using
+[`ppx_deriving`](https://github.com/ocaml-ppx/ppx_deriving). So all that is
+usually required is to define a datatype representing the operators and their
+arities.
+
+After the ABT is generated However, it is recommended that one also define constructors making it
+more convenient and safer to construct terms of the language:
 
 ```ocaml
 module Syntax = struct
@@ -94,19 +116,6 @@ module Syntax = struct
 end
 ```
 
-When the functor `Abt.Make` is applied to the module satisfying the `Operator`
-interface, it produces an ABT representing the syntax of your language. In this
-case, we now have syntax for the simply typed lambda calculus.
-
-The generated ABT will have the form
-
-```ocaml skip
-type t = private
-  | Var of Abt.Var.t
-  | Bnd of Abt.Var.binding * t
-  | Opr of t O.t
-```
-
 The `private` annotation indicates that you can use pattern matching to
 deconstruct the ABT, but you cannot construct new values without using the
 supplied combinators. This ensures essential invariants are preserved. E.g., it
@@ -128,7 +137,7 @@ let i = Syntax.(lam "x" x)
 let () =
   assert (Syntax.to_string s = "(λx.(λy.(λz.((x y) (y z)))))");
   assert (Syntax.to_string k = "(λx.(λy.x))");
-  assert (Syntax.to_string i = "(λx.x)")
+  assert (Syntax.to_string i = "(λx.x)");
 ```
 
 Note that equality between ABTs is defined in terms of ɑ-equivalence, so we can
@@ -147,27 +156,27 @@ use pattern matching to j
 open Syntax
 
 let rec eval : t -> t =
-  fun t ->
-    match t with
-    | Opr (App (m, n)) -> apply (eval m) (eval n)
-    | _ -> t (* No other terms can be evaluated *)
+ fun t ->
+  match t with
+  | Opr (App (m, n)) -> apply (eval m) (eval n)
+  (* No other terms can be evaluated *)
+  | _                -> t
 
 and apply : t -> t -> t =
-  fun m n ->
-    match m with
-    | Bnd (bnd, t) -> subst bnd ~value:n t
-    | Opr (Lam bnd) -> eval (apply bnd n)
-    | _ -> app m n (* otherwise the application can't be evaluated *)
+ fun m n ->
+  match m with
+  | Bnd (bnd, t)  -> subst bnd ~value:n t
+  | Opr (Lam bnd) -> eval (apply bnd n)
+  (* otherwise the application can't be evaluated *)
+  | _             -> app m n
 ```
 
 Finally, let's illustrate the correctness of our implementation with a few
 simple evaluations, demonstrating that our SKI combinators behave as expected:
 
 ``` ocaml
-
-
 let () =
-  (* Let equality be ɑ-equivalence on our syntax *)
+  (* Let equality be ɑ-equivalence on our syntax for the following examples *)
   let (=) = Syntax.equal in
   let open Syntax in
   assert (eval (app i x)                 = x);
@@ -181,7 +190,43 @@ reference.)
 
 ### Unification
 
-TODO
+The ABTs produced by applying the `Abt.Make` functor to an `Operator`
+implementation support first-order, syntactic unification modulo ɑ-equivalence.
+
+- Unification is (currently) limited to first-order, because there is no support
+  for variables standing for operators.
+- Unification is (currently) syntactic, because we do not perform any evaluation
+  to determine if two ABTs can be unified.
+- Unification is modulo ɑ-equivalence, because two ɑ-equivalent ABTs are
+  considered equal during unification.
+  
+``` ocaml
+let () =
+  let open Syntax in
+
+  (* The generated [Syntax] module includes a [Unification] submodule
+  
+     - the [=?=] operator checks for unifiability
+     - the [=.=] operator gives an [Ok] result with the unified term, if its operands unify, 
+       or else an [Error] indicating why the unification failed
+     - the [unify] function is like [=.=], but it also gives the substitution used to produce 
+       a unified term *)
+  let ((=?=), (=.=), unify) = Unification.((=?=), (=.=), unify) in
+
+  (* A free variable will unify with anything *)
+  assert (v "X" =?= s);
+  
+  (* Again, unification is modulo ɑ-equivalence *)
+  assert (lam "y" (lam "x" y) =?= lam "x" (lam "y" x));
+
+  (* Here we unify a the free variable "M" with the body of the [k] combinator *)
+  let unified_term = (lam "x" (v "M") =.= k) |> Result.get_ok in
+  assert (to_string unified_term = "(λx.(λy.x))");
+  
+  (* The substitution allows retrieval the bound values of the free variables *)
+  let _, substitution = unify (lam "x" (v "M")) k |> Result.get_ok in
+  assert (Unification.Subst.to_string substitution = "[ M -> (λy.x) ]")
+```
 
 ## Additional References
 

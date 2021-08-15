@@ -15,21 +15,20 @@ let utlc_tests =
   let s = oneofl [ lam "x" (lam "y" (lam "z" (app (app x y) (app y z)))) ] in
   let k = oneofl [ lam "x" (lam "y" x); lam "y" (lam "x" y) ] in
   let i = oneofl [ lam "x" x; lam "y" y; lam "z" z ] in
-  let ski = oneof [ s; k; i ] in
-  let term = Abt_gen.Utlc.arbitrary in
+  let term = oneof [ Abt_gen.Utlc.arbitrary; s; k; i ] in
   [ property "alpha equivalence -- reflexivity" term (fun t -> t = t)
   ; property
-      "alpha equivalance -- compatibility"
-      (oneof [ three term; three ski ])
+      "utlc -- alpha equivalance -- compatibility"
+      (three term)
       (fun (l, m, n) -> m = n ==> (app m l = app n l && app l m = app l n))
+  ; property "utlc -- alpha equivalence -- symmetry" (two term) (fun (m, n) ->
+        m = n ==> (n = m))
   ; property
-      "alpha equivalence -- symmetry"
-      (oneof [ two term; two ski ])
-      (fun (m, n) -> m = n ==> (n = m))
-  ; property
-      "alpha equivalence -- transitivity"
-      (oneof [ three term; three ski ])
+      "utlc -- alpha equivalence -- transitivity"
+      (three term)
       (fun (l, m, n) -> (l = m && m = n) ==> (l = n))
+  ; property "utlc -- unifiction -- reflexivity" term (fun m ->
+        Unification.(m =?= m))
   ]
 
 let unification_tests =
@@ -80,6 +79,8 @@ let unification_tests =
             Abt.Var.equal v v' && equal t t'
         (* Any other failure is an incorrect *)
         | _ -> false)
+  ; property "unification -- equal terms unify" (two term) (fun (a, b) ->
+        (not (equal a b)) || a =?= b)
   ; property
       "unification -- all free vars in terms are bound to subterms in \
        unification"
@@ -107,4 +108,5 @@ let unification_tests =
         && all_bound_free_vars_in_b_are_bound_to_subterms_of_unified)
   ]
 
+(* let () = QCheck_runner.run_tests_main (utlc_tests @ unification_tests) *)
 let () = QCheck_runner.run_tests_main (utlc_tests @ unification_tests)
