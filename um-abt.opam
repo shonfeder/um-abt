@@ -17,6 +17,7 @@ doc: "https://shonfeder.github.io/um-abt"
 bug-reports: "https://github.com/shonfeder/um-abt/issues"
 depends: [
   "dune" {>= "2.8"}
+  "ocaml" {>= "4.08.0"}
   "ppx_expect" {>= "v0.14.1"}
   "ppx_deriving" {>= "5.2.1"}
   "logs" {>= "0.7.0"}

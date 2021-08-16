@@ -22,6 +22,7 @@
    The library uses immutable pointers to represent variable binding and extends
    ABTs with unification, providing unifiable abstract binding trees (UABTs).")
  (depends
+  (ocaml (>= 4.08.0))
   (ppx_expect (>= v0.14.1))
   (ppx_deriving (>= 5.2.1))
   (logs (>= 0.7.0))
