@@ -179,20 +179,22 @@ module Make (Op : Operator) = struct
 
   let of_var : Var.t -> t = fun v -> Var v
 
-  let rec bind : Var.Binding.t -> t -> t =
-   fun bnd -> function
-    | Opr op     -> Opr (Op.map (bind bnd) op)
-    | Bnd (b, t) -> Bnd (b, bind bnd t)
-    | Var v      ->
-    match Var.bind v bnd with
-    | None    -> Var v
-    | Some v' -> Var v'
+  let bind : Var.Binding.t -> t -> t =
+    fun bnd t ->
+    let rec scope = function
+      | Opr op     -> Opr (Op.map scope op)
+      | Bnd (b, t) -> Bnd (b, scope t)
+      | Var v      ->
+        match Var.bind v bnd with
+        | None    -> Var v
+        | Some v' -> Var v'
+    in
+    Bnd (bnd, scope t)
 
   let ( #. ) : string -> t -> t =
    fun name abt ->
     let binding : Var.Binding.t = Var.Binding.v name in
-    let scope = bind binding abt in
-    Bnd (binding, scope)
+    bind binding abt
 
   let rec subst : Var.Binding.t -> value:t -> t -> t =
    fun bnd ~value -> function
