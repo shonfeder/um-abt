@@ -240,7 +240,7 @@ let () =
   (* Again, unification is modulo ɑ-equivalence *)
   assert (lam "y" (lam "x" y) =?= lam "x" (lam "y" x));
 
-  (* Here we unify a the free variable "M" with the body of the [k] combinator *)
+  (* Here we unify the free variable "M" with the body of the [k] combinator *)
   let unified_term = (lam "x" (v "M") =.= k) |> Result.get_ok in
   assert (to_string unified_term = "(λx.(λy.x))");
 

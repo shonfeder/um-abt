@@ -32,7 +32,6 @@ module type Operator = sig
   val to_string : string t -> string
 end
 
-
 module Var = struct
   module Binding = struct
     type t = string ref
@@ -45,7 +44,13 @@ module Var = struct
       if a == b then
         0
       else
-        String.compare !a !b
+        let cmp = String.compare !a !b in
+        match cmp with
+        | 0 ->
+            -1
+            (* If different refs with the same names,
+               then we just take the second ref to be bigger *)
+        | _ -> cmp
 
     let equal a b = Int.equal (compare a b) 0
   end
@@ -180,14 +185,14 @@ module Make (Op : Operator) = struct
   let of_var : Var.t -> t = fun v -> Var v
 
   let bind : Var.Binding.t -> t -> t =
-    fun bnd t ->
+   fun bnd t ->
     let rec scope = function
       | Opr op     -> Opr (Op.map scope op)
       | Bnd (b, t) -> Bnd (b, scope t)
       | Var v      ->
-        match Var.bind v bnd with
-        | None    -> Var v
-        | Some v' -> Var v'
+      match Var.bind v bnd with
+      | None    -> Var v
+      | Some v' -> Var v'
     in
     Bnd (bnd, scope t)
 

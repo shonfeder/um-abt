@@ -41,8 +41,15 @@ let utlc_tests =
       "utlc -- alpha equivalance -- compatibility"
       (three term)
       (fun (l, m, n) -> m = n ==> (app m l = app n l && app l m = app l n))
-  ; property "utlc -- alpha equivalence -- symmetry" (two term) (fun (m, n) ->
-        m = n ==> (n = m))
+  ; property
+      "utlc -- alpha equivalence -- symmetry"
+      (oneof
+         [ two term
+         ; pair
+             (always @@ lam "x" (lam "y" (v "x")))
+             (always @@ lam "r" (lam "r" (v "r")))
+         ])
+      (fun (m, n) -> m = n ==> (n = m))
   ; property
       "utlc -- alpha equivalence -- transitivity"
       (three term)
