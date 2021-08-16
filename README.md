@@ -1,7 +1,6 @@
 # um-abt
 
-[![Main workflow](https://github.com/shonfeder/um-abt/actions/workflows/main.yml/badge.svg)](https://github.com/shonfeder/um-abt/actions/workflows/main.yml)
-
+[![build](https://github.com/shonfeder/um-abt/actions/workflows/main.yml/badge.svg)](https://github.com/shonfeder/um-abt/actions/workflows/main.yml)
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
 

@@ -1,6 +1,6 @@
 # Adapted from https://github.com/ocaml/setup-ocaml
 #
-name: Main workflow
+name: ci
 
 on:
   pull_request:
