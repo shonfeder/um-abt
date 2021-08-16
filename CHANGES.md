@@ -1,3 +1,7 @@
+## v0.1.3
+
+- Put lower bound of 4.08.0 on ocaml compiler
+
 ## v0.1.2
 
 - Fix missing logs dependency
@@ -9,6 +13,6 @@
 - Fix build failure
 - Fix missing dependencies
 
-## v0.1.0 
+## v0.1.0
 
 - Initial release
