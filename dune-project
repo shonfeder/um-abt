@@ -8,7 +8,7 @@
 
 (authors "Shon Feder")
 (maintainers "shon.feder@gmail.com")
-(documentation "https://shonfeder.github.io/um-abt/um-abt/Abt/index.html")
+(documentation "https://shonfeder.github.io/um-abt")
 
 (package
  (name um-abt)
