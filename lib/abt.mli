@@ -260,7 +260,7 @@ module Make (Op : Operator) : sig
         unifier. Otherwise it is [Error err)], for which, see {!type:error} *)
 
     val ( =.= ) : t -> t -> (t, error) Result.t
-    (** [a =.= b] is [unify a b] *)
+    (** [a =.= b] is [unify a b |> Result.map fst] *)
 
     val ( =?= ) : t -> t -> bool
     (** [a =?= b] is [true] iff [a =.= b] is an [Ok _] value *)
