@@ -4,6 +4,7 @@
  (preprocess (pps ppx_deriving.std)))
 
 (rule
+ (alias runtest)
  (target readme.ml)
  (deps
   (package um-abt))
