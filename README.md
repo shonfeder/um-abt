@@ -4,7 +4,9 @@
 **Table of Contents**
 
 - [um-abt](#um-abt)
-    - [Features](#features)
+    - [Overview](#overview)
+        - [Aims](#aims)
+        - [Features](#features)
     - [Examples](#examples)
         - [The simply typed lambda calculus](#the-simply-typed-lambda-calculus)
         - [Unification](#unification)
@@ -12,12 +14,23 @@
 
 <!-- markdown-toc end -->
 
-An OCaml library implementing abstract binding trees (ABTs) exhibiting with the
-properties defined in [Robert Harper](https://www.cs.cmu.edu/~rwh/pfpl/)'s
-[Practical Foundations for Programming Labguages](https://www.cs.cmu.edu/~rwh/pfpl/)
-(PFPL).
+## Overview
 
-## Features
+`um-abt` is OCaml library implementing abstract binding trees (ABTs) exhibiting
+the properties defined in [Robert Harper](https://www.cs.cmu.edu/~rwh/pfpl/)'s
+[Practical Foundations for Programming
+Labguages](https://www.cs.cmu.edu/~rwh/pfpl/) (PFPL).
+
+### Aims
+
+This library aims for the following qualities:
+
+1. It should be correct.
+2. It should be well tested, to ensure its correctness.
+3. It should be easy to use.
+4. It should be well documented.
+
+### Features
 
 This ABT library has two distinctive (afaik) features:
 
@@ -199,30 +212,30 @@ implementation support first-order, syntactic unification modulo ɑ-equivalence.
   to determine if two ABTs can be unified.
 - Unification is modulo ɑ-equivalence, because two ɑ-equivalent ABTs are
   considered equal during unification.
-  
+
 ``` ocaml
 let () =
   let open Syntax in
 
   (* The generated [Syntax] module includes a [Unification] submodule
-  
+
      - the [=?=] operator checks for unifiability
-     - the [=.=] operator gives an [Ok] result with the unified term, if its operands unify, 
+     - the [=.=] operator gives an [Ok] result with the unified term, if its operands unify,
        or else an [Error] indicating why the unification failed
-     - the [unify] function is like [=.=], but it also gives the substitution used to produce 
+     - the [unify] function is like [=.=], but it also gives the substitution used to produce
        a unified term *)
   let ((=?=), (=.=), unify) = Unification.((=?=), (=.=), unify) in
 
   (* A free variable will unify with anything *)
   assert (v "X" =?= s);
-  
+
   (* Again, unification is modulo ɑ-equivalence *)
   assert (lam "y" (lam "x" y) =?= lam "x" (lam "y" x));
 
   (* Here we unify a the free variable "M" with the body of the [k] combinator *)
   let unified_term = (lam "x" (v "M") =.= k) |> Result.get_ok in
   assert (to_string unified_term = "(λx.(λy.x))");
-  
+
   (* The substitution allows retrieval the bound values of the free variables *)
   let _, substitution = unify (lam "x" (v "M")) k |> Result.get_ok in
   assert (Unification.Subst.to_string substitution = "[ M -> (λy.x) ]")
