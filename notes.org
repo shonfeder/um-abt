@@ -1,0 +1,12 @@
+#+TITLE: Notes
+
+These are rough notes and ideas
+
+* Tasks
+** DONE Rework API to use pattern matching on =private= types
+** DONE Rework examples to use new API
+** TODO Figure out how to expose the type Abt.binding to construction in operators
+It would be nice if terms could specify when they took a binding operator.
+Maybe with GADTs?
+** TODO Use GADTs for a finally tagless style?
+https://ocaml.org/manual/gadts.html
