@@ -1,8 +1,8 @@
 ## v0.1.1
 
-- Fix build failure
 - Fix binding constructor bug
-- Add CI
+- Fix build failure
+- Fix missing dependencies
 
 ## v0.1.0 
 
