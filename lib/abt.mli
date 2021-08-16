@@ -144,24 +144,12 @@ module Make (Op : Operator) : sig
     -> t
     -> 'a
   (** Case analysis for eleminating ABTs
-   *
-   *  The usual use is for implementing the semantics for the language whose
-   *  syntax is defined by the ABT.
-   *
-   *  For examples, see test/example/example.ml
-   *
-   *  @param var function to apply to variables
-   *  @param bnd function to apply to bindings
-   *  @param opr function to apply to operators
-   *)
 
-  val transform :
-       var:(Var.t -> Var.t)
-    -> bnd:(Var.Binding.t * t -> Var.Binding.t * t)
-    -> opr:(t Op.t -> t Op.t)
-    -> t
-    -> t
-  (** Case analysis for transforming ABT *)
+      This is an alternative to using pattern-based elimination.
+
+      @param var function to apply to variables
+      @param bnd function to apply to bindings
+      @param opr function to apply to operators *)
 
   val subterms : t -> t list
   (** [subterms t] is a list of all the subterms in [t], including [t] itself *)

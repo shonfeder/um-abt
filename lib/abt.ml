@@ -215,13 +215,6 @@ module Make (Op : Operator) = struct
     | Bnd (b, t) -> bnd (b, t)
     | Opr o      -> opr o
 
-  let transform ~var ~bnd ~opr = function
-    | Var v      -> Var (var v)
-    | Opr o      -> Opr (opr o)
-    | Bnd (b, t) ->
-        let b, t = bnd (b, t) in
-        Bnd (b, t)
-
   let is_free_var : t -> bool =
    fun t ->
     match t with

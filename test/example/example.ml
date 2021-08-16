@@ -33,15 +33,15 @@ module Untyped_lambda_calculus = struct
     match t with
     | Opr (App (m, n)) -> apply (eval m) (eval n)
     (* No other terms can be evaluated *)
-    | _                -> t
+    | _ -> t
 
   and apply : t -> t -> t =
    fun m n ->
     match m with
-    | Bnd (bnd, t)  -> subst bnd ~value:n t
+    | Bnd (bnd, t) -> subst bnd ~value:n t
     | Opr (Lam bnd) -> eval (apply bnd n)
     (* otherwise the application can't be evaluated *)
-    | _             -> app m n
+    | _ -> app m n
 
   module Examples = struct
     open Syntax
@@ -99,7 +99,7 @@ module Untyped_lambda_calculus = struct
       [%expect {|true|}];
 
       s =?= s' |> Bool.to_string |> print_endline;
-      [%expect {|true|}];
+      [%expect {|true|}]
   end
 end
 
@@ -139,39 +139,31 @@ module Arithmetic_expressions = struct
   module Semantics = struct
     open Syntax
 
-    let rec reduce : t -> int option =
-     fun t ->
-      let var = Fun.const None in
-      let bnd = Fun.const None in
-      let opr =
-        let open O in
-        function
-        | Num n       -> Some n
-        | Plus (a, b) ->
-        match (reduce a, reduce b) with
-        | None, _
-        | _, None ->
-            None
-        | Some a, Some b -> Some (a + b)
-      in
-      case t ~var ~bnd ~opr
+    let ( let* ) = Option.bind
 
-    let rec eval : t -> t =
-     fun t ->
-      let var = Fun.id in
-      let bnd (b, t) = (b, eval t) in
-      let opr =
-        let open O in
-        function
-        | Num n       -> Num n
-        | Plus (a, b) ->
-        match (reduce a, reduce b) with
-        | None, None      -> Plus (a, b)
-        | Some n, Some n' -> Num (n + n')
-        | Some n, None    -> Plus (num n, b)
-        | None, Some n'   -> Plus (a, num n')
-      in
-      transform t ~var ~bnd ~opr
+    let rec reduce : t -> int option = function
+      | Var _ -> None
+      | Bnd _ -> None
+      | Opr o ->
+      match o with
+      | Num n       -> Some n
+      | Plus (a, b) ->
+          let* a = reduce a in
+          let* b = reduce b in
+          Some (a + b)
+
+    let rec eval : t -> t = function
+      | Var _ as v -> v
+      | Bnd (b, t) -> bind b (eval t)
+      | Opr o      ->
+      match o with
+      | Num n       -> num n
+      | Plus (a, b) ->
+      match (reduce a, reduce b) with
+      | None, None      -> plus a b
+      | Some n, Some n' -> num (n + n')
+      | Some n, None    -> plus (num n) b
+      | None, Some n'   -> plus a (num n')
   end
 
   let x, y, z = Syntax.(v "x", v "y", v "z")
