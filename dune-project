@@ -8,16 +8,19 @@
 
 (authors "Shon Feder")
 (maintainers "shon.feder@gmail.com")
-(documentation "https://shonfeder.github.io/um-abt")
+(documentation "https://shonfeder.github.io/um-abt/um-abt/Abt/index.html")
 
 (package
  (name um-abt)
  (synopsis
-  "An OCaml library implementing abstract binding trees (ABTs)")
+  "An OCaml library implementing unifiable abstract binding trees (UABTs)")
  (description
-  "An ABT library consistent with the interface defined in Robert Harper's
-   'Practical Foundations for Programming Languages', using immutable
-   pointers to for varibale binding.")
+  "um-abt provides an abstract binding tree (ABT) library following the
+   principles of Robert Harper's 'Practical Foundations for Programming
+   Languages'.
+
+   The library uses immutable pointers to represent variable binding and extends
+   ABTs with unification, providing unifiable abstract binding trees (UABTs).")
  (depends
   (ppx_expect (>= v0.14.1))
   (ppx_deriving (>= 5.2.1))
