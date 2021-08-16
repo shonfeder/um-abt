@@ -13,7 +13,7 @@ maintainer: ["shon.feder@gmail.com"]
 authors: ["Shon Feder"]
 license: "MIT"
 homepage: "https://github.com/shonfeder/um-abt"
-doc: "https://shonfeder.github.io/um-abt/um-abt/Abt/index.html"
+doc: "https://shonfeder.github.io/um-abt"
 bug-reports: "https://github.com/shonfeder/um-abt/issues"
 depends: [
   "dune" {>= "2.8"}
