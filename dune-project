@@ -24,6 +24,7 @@
  (depends
   (ppx_expect (>= v0.14.1))
   (ppx_deriving (>= 5.2.1))
+  (logs (>= 0.7.0))
   (logs-ppx (>= 0.2.0))
   (qcheck (and :with-test (>= 0.17)))
   (bos (and :with-test (>= 0.2.0)))
