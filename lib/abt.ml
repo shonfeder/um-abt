@@ -18,6 +18,21 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. *)
 
+module type Operator = sig
+  (** An operator *)
+
+  type 'a t
+
+  val map : ('a -> 'b) -> 'a t -> 'b t
+
+  val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+
+  val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
+
+  val to_string : string t -> string
+end
+
+
 module Var = struct
   module Binding = struct
     type t = string ref
@@ -87,20 +102,6 @@ module Var = struct
     match v with
     | Free _  -> false
     | Bound b -> b == bnd
-end
-
-module type Operator = sig
-  (** An operator *)
-
-  type 'a t
-
-  val map : ('a -> 'b) -> 'a t -> 'b t
-
-  val to_string : string t -> string
-
-  val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
-
-  val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
 end
 
 module Operator_aux (O : Operator) = struct
