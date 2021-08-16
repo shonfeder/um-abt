@@ -6,11 +6,12 @@
 
 - [um-abt](#um-abt)
     - [Overview](#overview)
+        - [Documentation](#documentation)
         - [Aims](#aims)
         - [Features](#features)
-    - [Examples](#examples)
-        - [The simply typed lambda calculus](#the-simply-typed-lambda-calculus)
-        - [Unification](#unification)
+    - [Synopsis](#synopsis)
+        - [An ABT for the λ-calculus](#an-abt-for-the-λ-calculus)
+        - [Unification over λ-calculus terms](#unification-over-λ-calculus-terms)
     - [Additional References](#additional-references)
 
 <!-- markdown-toc end -->
@@ -21,6 +22,12 @@
 the properties defined in [Robert Harper](https://www.cs.cmu.edu/~rwh/pfpl/)'s
 [Practical Foundations for Programming
 Labguages](https://www.cs.cmu.edu/~rwh/pfpl/) (PFPL).
+
+### Documentation
+
+- [API Documentation](https://shonfeder.github.io/um-abt/um-abt/Abt/index.html)
+- [Synposis](#synopsis)
+- [Examples](https://github.com/shonfeder/um-abt/blob/trunk/test/example/example.ml)
 
 ### Aims
 
@@ -69,13 +76,13 @@ This ABT library has two distinctive (afaik) features:
 
 [HOAS]: https://en.wikipedia.org/wiki/Higher-order_abstract_syntax
 
-## Examples
+## Synopsis
 
 The following short examples help illustrate use of the library. For more
 extensive examples, see
 [test/example/example.ml](https://github.com/shonfeder/um-abt/blob/trunk/test/example/example.ml).
 
-### The simply typed lambda calculus
+### An ABT for the λ-calculus
 
 Here is a short example showing a naive implementation of the simply typed
 lambda calculus using `um-abt`.
@@ -202,7 +209,7 @@ let () =
 <https://en.wikipedia.org/wiki/SKI_combinator_calculus#Informal_description> for
 reference.)
 
-### Unification
+### Unification over λ-calculus terms
 
 The ABTs produced by applying the `Abt.Make` functor to an `Operator`
 implementation support first-order, syntactic unification modulo ɑ-equivalence.
