@@ -108,5 +108,4 @@ let unification_tests =
         && all_bound_free_vars_in_b_are_bound_to_subterms_of_unified)
   ]
 
-(* let () = QCheck_runner.run_tests_main (utlc_tests @ unification_tests) *)
 let () = QCheck_runner.run_tests_main (utlc_tests @ unification_tests)
