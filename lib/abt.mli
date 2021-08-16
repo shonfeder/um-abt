@@ -1,9 +1,73 @@
-module Var : sig
-  (** Variables, named by strings, which can be bound to a {!module:Binding} or
-      left free. *)
+(** {1 Overview}
 
+    [um-abt] is a library for representing and manipulating the the syntax of
+    languages that use {{!module:Var} variables}.
+
+    [um-abt] provides abstract binding trees (ABTs). An abstract binding tree is
+    an {i abstract syntax tree}, enriched with constructs to manage variable
+    binding and scope.
+
+    [um-abt] also supports {{!module:Make.Unification} unification} over
+    ABTs.
+
+    {1 Example}
+
+      A typical example of a module satisfying this interface, used to represent
+      the syntax of the untyped lambda calculus:
+
+      {[
+        module O = struct
+          type 'a t =
+            | App of 'a * 'a
+            | Lam of 'a
+          [@@deriving eq, map, fold]
+
+          let to_string : string t -> string = function
+            | App (l, m) -> Printf.sprintf "(%s %s)" l m
+            | Lam abs    -> Printf.sprintf "(λ%s)" abs
+        end
+
+        include Abt.Make (O)
+      ]}
+
+      Note the use of {{:https://github.com/ocaml-ppx/ppx_deriving}
+      ppx_deriving} to derive most values automatically.
+
+ *)
+
+(** {1 Interfaces} *)
+
+(** The interface for a module that defines the operators of a language *)
+module type Operator = sig
+
+  type 'a t
+  (** The type of the operator, usually represented as a sum type.
+
+      Each operator should be have the form
+
+      {[
+        Foo of 'a * 'a * ... * 'a
+      ]}
+
+      Where the free variables ['a] are arguments to the operator [Foo]. *)
+
+  val map : ('a -> 'b) -> 'a t -> 'b t
+
+  val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+
+  val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
+
+  val to_string : string t -> string
+end
+
+(** {1 Top-level modules} *)
+
+(** Variables, named by strings, which can be bound to a {!module:Var.Binding} or
+    left free. *)
+module Var : sig
+
+  (** A binding is an immutable reference, to which a bound can refer. *)
   module Binding : sig
-    (** A binding is an immutable reference to which a variable can be bound. *)
 
     include Map.OrderedType
 
@@ -78,36 +142,22 @@ module Var : sig
   module Map : Map.S with type key = t
 end
 
-module type Operator = sig
-  (** An operator *)
-
-  type 'a t
-
-  val map : ('a -> 'b) -> 'a t -> 'b t
-
-  val to_string : string t -> string
-
-  val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
-
-  val fold : ('a -> 'b -> 'a) -> 'a -> 'b t -> 'a
-end
-
-module Make (Op : Operator) : sig
 (** [Make (Op)] is a module for constructing and manipulating ABTs for the
     operators defined in [Op]. *)
+module Make (Op : Operator) : sig
 
-  type t = private
-    | Var of Var.t
-    | Bnd of Var.Binding.t * t
-    | Opr of t Op.t
   (** The type of ABT's constructed from the operators defind in [O] *)
-
-  val of_var : Var.t -> t
-  (** [of_var v] is a leaf in the ABT consisting of the variable [v] *)
+  type t = private
+    | Var of Var.t (** Variables *)
+    | Bnd of Var.Binding.t * t (** Scoped variable binding *)
+    | Opr of t Op.t (** Operators specified in {!Op} *)
 
   val bind : Var.Binding.t -> t -> t
   (** [bind bnd t] is a branch of the ABT, in which any free variables in [t]
       matching the name of [bnd] are bound to [bnd].  *)
+
+  val of_var : Var.t -> t
+  (** [of_var v] is a leaf in the ABT consisting of the variable [v] *)
 
   val v : string -> t
   (** [v x] is a leaf in the ABT consisting of a variable named [x] *)
@@ -119,9 +169,9 @@ module Make (Op : Operator) : sig
   (** [x #. t] is a new abt obtained by binding all {i free} variables named
       [x] in [t]
 
-      Note that this does {b not} bind the variables to a {i value}, (for which,
-      see {!subst}). This only binds the free variables within the scope of an
-      abstraction that ranges over the given (sub) abt [t]. *)
+      Note that this does {b not} substitute variables for a {i value}, (for
+      which, see {!subst}). This only binds the free variables within the scope
+      of an abstraction that ranges over the given (sub) abt [t]. *)
 
   val subst : Var.Binding.t -> value:t -> t -> t
   (** [subst bnd ~value t] is a new ABT obtained by substituting [value] for
