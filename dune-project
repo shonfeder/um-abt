@@ -1,8 +1,6 @@
 (lang dune 2.8)
 (name um-abt)
 
-(using mdx 0.1)
-
 (generate_opam_files true)
 
 (source (github shonfeder/um-abt))
@@ -24,4 +22,4 @@
   (ppx_expect (>= v0.14.1))
   (ppx_deriving (>= 5.2.1))
   (qcheck (and :with-test (>= 0.17)))
-  (mdx (>= 1.10.1))))
+  (mdx (and :with-test (>= 1.10.1)))))

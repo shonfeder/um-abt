@@ -16,7 +16,7 @@ depends: [
   "ppx_expect" {>= "v0.14.1"}
   "ppx_deriving" {>= "5.2.1"}
   "qcheck" {with-test & >= "0.17"}
-  "mdx" {>= "1.10.1"}
+  "mdx" {with-test & >= "1.10.1"}
   "odoc" {with-doc}
 ]
 build: [
