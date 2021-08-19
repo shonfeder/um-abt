@@ -140,21 +140,24 @@ end
 module Bindmap : sig
   type t
 
+  val empty : t
+
   val add : left:Var.Binding.t -> right:Var.Binding.t -> t -> t
+
+  type lookup = Var.Binding.t -> t -> Var.Binding.t option
 
   (* [find bnd m] is the binding corresponding to [bnd], regardless of which
      side it was entered from *)
-  val find : Var.Binding.t -> t -> Var.Binding.t option
+  val find : lookup
 
-  val empty : t
 
   (* [find_left bnd m] is [bnd] if [bnd] was entered from the left, otherwise it
      is the left-side binding corresponding to the one entered on the right *)
-  val find_left : Var.Binding.t -> t -> Var.Binding.t option
+  val find_left : lookup
 
   (* [find_left bnd m] is [bnd] if [bnd] was entered from the right, otherwise it
      is the left-side binding corresponding to the one entered on the left *)
-  val find_right : Var.Binding.t -> t -> Var.Binding.t option
+  val find_right : lookup
 end = struct
   module M = Map.Make (Var.Binding)
 
@@ -163,8 +166,12 @@ end = struct
     ; right : Var.Binding.t M.t
     }
 
+  let empty = { left = M.empty; right = M.empty }
+
   let add ~left ~right m =
     { left = M.add left right m.left; right = M.add right left m.right }
+
+  type lookup = Var.Binding.t -> t -> Var.Binding.t option
 
   (* Var.Binding.t are unique (because identified by pointer location reference)
      so we don't need safety constraints on lookup etc. *)
@@ -185,10 +192,6 @@ end = struct
     else
       M.find_opt k m.left
 
-  (* match M.find_opt k m.left with
-       * | None   -> M.find_opt k m.
-       * | Some v -> Some v *)
-  let empty = { left = M.empty; right = M.empty }
 end
 
 module Make (Op : Operator) = struct
@@ -332,7 +335,9 @@ module Make (Op : Operator) = struct
       | `Occurs of Var.t * t
       ]
 
-    let fail ?v t t' : error = `Unification (v, t, t')
+    let fail ?v t t' : error =
+      [%log debug "unification failure: %s <> %s " (to_string t) (to_string t')];
+      `Unification (v, t, t')
 
     let occurs_err v t : error =
       [%log debug "fail: %s ocurrs in %s" (Var.to_string v) (to_string t)];
@@ -410,6 +415,7 @@ module Make (Op : Operator) = struct
           | None, Some term_ref' ->
               Ok { s with vars = Var.Map.add v term_ref' vars }
           | Some term_ref, Some term_ref' ->
+              (* TODO Should this be a structural equality check? *)
               if term_ref == term_ref' then
                 Ok s
               else
@@ -428,38 +434,49 @@ module Make (Op : Operator) = struct
          - unassigned free var -> free var
          - assigned free var -> assigned value
          - compound term -> substitute into each of it's compounds
-         - bound var -> bound var *)
-      let rec apply : t -> term -> term =
-       fun s term ->
+         - bound var -> bound var
+
+         When [lookup] is provided, it tells us how to find binding
+         correlates for the proper side of a unification *)
+      let apply : ?lookup:Bindmap.lookup -> t -> term -> term =
+       fun ?lookup s term ->
+       let _ = lookup in
+       let rec aux s term =
         [%log
           debug
             "applying substitution: %s %s"
             (term_to_string term)
             (to_string s)];
         match term with
-        | Bnd (b, t')        -> Bnd (b, apply s t')
-        | Opr o              -> Op.map (apply s) o |> op
+        | Bnd (b, t')        -> Bnd (b, aux s t')
+        | Opr o              -> Op.map (aux s) o |> op
         | Var (Bound _ as v) -> of_var v
         | Var (Free _ as v)  ->
             Var.Map.find_opt v s.vars
             |> Option.map (fun { contents } ->
                    if not (is_free_var contents) then
-                     apply s contents
+                     aux s contents
                    else
                      contents)
             |> Option.value ~default:term
+       in
+       aux s term
 
       let ( let* ) = Result.bind
 
       module Op = Operator_aux (Op)
 
-      (* Caution: Here be mutability! Never allow a mutable substitution to escape! *)
+      (* Caution: Here be mutability! Never allow a mutable substitution to
+         escape the abstract type! *)
       let build a b =
         let rec aux s_res a b =
           let* s = s_res in
           match (a, b) with
           | Opr ao, Opr bo when Op.same ao bo -> Op.fold2 aux (Ok s) ao bo
-          | Bnd (_, a'), Bnd (_, b') -> aux (Ok s) a' b'
+          | Bnd (left, a'), Bnd (right, b') ->
+              (* Correlate the bindings *)
+              let s = { s with bnds = Bindmap.add ~left ~right s.bnds } in
+              aux (Ok s) a' b'
           | Var (Free _ as v), _ -> add s v b
           | _, Var (Free _ as v) -> add s v a
           | Var (Bound _), Var (Bound _) ->
@@ -496,21 +513,9 @@ module Make (Op : Operator) = struct
               (to_string b)
               (to_string u)];
           result
-      | Error (`Occurs (v, t)) ->
+      | Error _   ->
           [%log
-            debug
-              "unification failure: %s occurs in %s"
-              (Var.to_string v)
-              (to_string t)];
-          result
-      | Error (`Unification (_, a', b')) ->
-          [%log
-            debug
-              "unification failure: %s =.= %s => %s <> %s "
-              (to_string a)
-              (to_string b)
-              (to_string a')
-              (to_string b')];
+            debug "unification failure: %s =/= %s" (to_string a) (to_string b)];
           result
 
     let ( =.= ) a b = unify a b |> Result.map fst
