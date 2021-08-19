@@ -251,19 +251,25 @@ let () =
 
 ## Additional References
 
-- Harper explicitly connects binding scope with pointers in PFPL, tho I have not
-  seen another implementation that takes this connection literally to bypass the
-  usual pain of tedious renaming and inscrutable De Bruijn indices.
+- Harper explicitly connects binding scope with pointers in PFPL (tho I have not
+  seen another functional implementation that takes this connection literally):
 
   > The crucial idea is that any use of an identifier should be understood as a
   > reference, or abstract pointer, to its binding. (PFPL, 2nd ed., p. 6)
 
 - I discussed the idea of using `ref` cells to track binding scope in
   conversation with Callan McGill, and the representation of free and bound
-  variables was influenced by his  post ["Locally
+  variables was influenced by his post ["Locally
   Nameless"](https://boarders.github.io/posts/locally-nameless.html).
 
-- The implementation of ABTs in OCaml was informed by [Neel
+- The initial implementation of ABTs in OCaml was informed by [Neel
   Krishnaswami](https://www.cl.cam.ac.uk/~nk480/)'s [post on
-  ABTs](https://semantic-domain.blogspot.com/2015/03/abstract-binding-trees.html)
-  (but is substantialy different).
+  ABTs](https://semantic-domain.blogspot.com/2015/03/abstract-binding-trees.html).
+
+- I consulted [Christian Urban](https://nms.kcl.ac.uk/christian.urban/)'s paper
+  [Nominal Unification Revisited](https://arxiv.org/pdf/1012.4890.pdf) and
+  Urban, Pitts, and Gabby's [Nominal
+  Unification](http://gabbay.org.uk/papers/nomu-jv.pdf)  for guidance on the
+  harrier bits of unification modulo ɑ-equivalence, tho this library does not
+  currently take advantage of the strategy of nominal permutations described
+  there.
