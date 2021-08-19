@@ -309,6 +309,10 @@ module Prolog = struct
       [%expect {| f(a, X) |}];
 
       show (comp "f" [ y; comp "g" [ a; b ] ]);
-      [%expect {| f(Y, g(a, b)) |}]
+      [%expect {| f(Y, g(a, b)) |}];
+
+      (* We don't hit Norvig's unification bug https://norvig.com/unify-bug.pdf *)
+      show Unification.(comp "f" [x; y] =.= comp "f" [y; x] |> Result.get_ok);
+      [%expect {| f(X, X) |}];
   end
 end
