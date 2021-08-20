@@ -137,14 +137,175 @@ module Operator_aux (O : Operator) = struct
   include O
 end
 
+module Bndmap : sig
+  type t
+
+  val empty : t
+
+  val add : left:Var.Binding.t -> right:Var.Binding.t -> t -> t
+
+  type lookup = Var.Binding.t -> t -> Var.Binding.t option
+
+  (* [find bnd m] is the binding corresponding to [bnd], regardless of which
+     side it was entered from *)
+  val find : lookup
+
+  (* [find_left bnd m] is [bnd] if [bnd] was entered from the left, otherwise it
+     is the left-side binding corresponding to the one entered on the right *)
+  val find_left : lookup
+
+  (* [find_left bnd m] is [bnd] if [bnd] was entered from the right, otherwise it
+     is the left-side binding corresponding to the one entered on the left *)
+  val find_right : lookup
+end = struct
+  module M = Map.Make (Var.Binding)
+
+  type t =
+    { left : Var.Binding.t M.t
+    ; right : Var.Binding.t M.t
+    }
+
+  let empty = { left = M.empty; right = M.empty }
+
+  let add ~left ~right m =
+    { left = M.add left right m.left; right = M.add right left m.right }
+
+  type lookup = Var.Binding.t -> t -> Var.Binding.t option
+
+  (* Var.Binding.t are unique (because identified by pointer location reference)
+     so we don't need safety constraints on lookup etc. *)
+  let find k m =
+    match M.find_opt k m.left with
+    | None   -> M.find_opt k m.right
+    | Some v -> Some v
+
+  let find_left k m =
+    if M.mem k m.left then
+      Some k
+    else
+      M.find_opt k m.right
+
+  let find_right k m =
+    if M.mem k m.right then
+      Some k
+    else
+      M.find_opt k m.left
+end
+
+module type Syntax = sig
+  module Op : Operator
+
+  (** The type of ABT's constructed from the operators defind in [O] *)
+  type t = private
+    | Var of Var.t (** Variables *)
+    | Bnd of Var.Binding.t * t (** Scoped variable binding *)
+    | Opr of t Op.t (** Operators specified in {!Op} *)
+
+  val bind : Var.Binding.t -> t -> t
+  (** [bind bnd t] is a branch of the ABT, in which any free variables in [t]
+      matching the name of [bnd] are bound to [bnd].  *)
+
+  val of_var : Var.t -> t
+  (** [of_var v] is a leaf in the ABT consisting of the variable [v] *)
+
+  val v : string -> t
+  (** [v x] is a leaf in the ABT consisting of a variable named [x] *)
+
+  val op : t Op.t -> t
+  (** [op o] is a branch in the ABT consisting of the operator [o]  *)
+
+  val ( #. ) : string -> t -> t
+  (** [x #. t] is a new abt obtained by binding all {i free} variables named
+      [x] in [t]
+
+      Note that this does {b not} substitute variables for a {i value}, (for
+      which, see {!subst}). This only binds the free variables within the scope
+      of an abstraction that ranges over the given (sub) abt [t]. *)
+
+  val subst : Var.Binding.t -> value:t -> t -> t
+  (** [subst bnd ~value t] is a new ABT obtained by substituting [value] for
+      all variables bound to [bnd]. *)
+
+  val subst_var : string -> value:t -> t -> t
+  (** [subst_var name ~value t] is a new abt obtained by substituting [value] for
+      the outermost scope of variables bound to [name] in [t] *)
+
+  val to_string : t -> string
+  (** [to_string t] is the representation of [t] as a string *)
+
+  val equal : t -> t -> bool
+  (** [equal t t'] is [true] when [t] and [t'] are alpha equivalent and [false] otherwise *)
+
+  val case :
+       var:(Var.t -> 'a)
+    -> bnd:(Var.Binding.t * t -> 'a)
+    -> opr:(t Op.t -> 'a)
+    -> t
+    -> 'a
+  (** Case analysis for eleminating ABTs
+
+      This is an alternative to using pattern-based elimination.
+
+      @param var function to apply to variables
+      @param bnd function to apply to bindings
+      @param opr function to apply to operators *)
+
+  val subterms : t -> t list
+  (** [subterms t] is a list of all the subterms in [t], including [t] itself *)
+
+  val free_vars : t -> Var.Set.t
+  (** [free_vars t] is the set of variables that are free in in [t] *)
+
+  val is_closed : t -> bool
+  (** [is_closed t] if [true] if there are no free variables in [t], otherwise false *)
+
+  module Unification : sig
+    module Subst : sig
+      type term = t
+      (** An alias for the type of the ABT for reference in the context of the substitution *)
+
+      type t
+      (** Substitutions mapping free variables to terms *)
+
+      val find : Var.t -> t -> term option
+      (** [find v s] is [Some term] if [v] is bound to [term] in the
+          substitution [s], otherwise it is [None]*)
+
+      val bindings : t -> (Var.t * term) list
+      (** [bindings s] is a list of all the bindings in [s] *)
+
+      val to_string : t -> string
+    end
+
+    type error =
+      [ `Unification of Var.t option * t * t
+      | `Occurs of Var.t * t
+      ]
+    (** Errors returned when unification fails *)
+
+    val unify : t -> t -> (t * Subst.t, error) Result.t
+    (** [unify a b] is [Ok (union, substitution)] when [a] and [b] can be
+        unified into the term [union] and [substitution] is the most general
+        unifier. Otherwise it is [Error err)], for which, see {!type:error} *)
+
+    val ( =.= ) : t -> t -> (t, error) Result.t
+    (** [a =.= b] is [unify a b |> Result.map fst] *)
+
+    val ( =?= ) : t -> t -> bool
+    (** [a =?= b] is [true] iff [a =.= b] is an [Ok _] value *)
+  end
+end
+
 module Make (Op : Operator) = struct
+  module Op = Op
+
   type t =
     | Var of Var.t
     | Bnd of Var.Binding.t * t
     | Opr of t Op.t
 
-  (* Alpha-equivalence is derived by checking that the structure of the
-     two abts is the same.
+  (* Alpha-equivalence is derived by checking that the ABTs are identical
+     modulo the pointer structure of any bound variables.
 
      - For operators, this just amounts to checking the equality supplied by the
        given {!modtype:Operator}, [O].
@@ -152,29 +313,23 @@ module Make (Op : Operator) = struct
        do take no account of names, since alpha equivalence is fundamentally
        concerned with the (anonymous) binding structure of ABTs. *)
   let equal : t -> t -> bool =
-    let module Bindmap = Map.Make (Var.Binding) in
-    let vars_equal bimap x x' =
-      match Var.(to_binding x, to_binding x') with
-      | Some _, None    -> false
-      | None, Some _    -> false
-      | None, None      -> Var.equal x x'
-      | Some b, Some b' ->
-      (* Two bound variables are equal when their bindings correspond *)
-      match Bindmap.find_opt b bimap with
-      | Some b'' -> Var.Binding.equal b' b''
-      | None     -> false
+    let bindings_correlated bndmap bnd bnd' =
+      match Bndmap.find bnd bndmap with
+      | Some bnd'' -> Var.Binding.equal bnd' bnd''
+      | None       -> false
     in
-    let rec equal : Var.Binding.t Bindmap.t -> t -> t -> bool =
-     fun bimap t t' ->
+    let rec equal : Bndmap.t -> t -> t -> bool =
+     fun bndmap t t' ->
       match (t, t') with
-      | Opr o, Opr o'            -> Op.equal (equal bimap) o o'
-      | Bnd (b, t), Bnd (b', t') ->
-          (* Associate corresponding bindings in a bimap *)
-          equal (Bindmap.add b b' bimap) t t'
-      | Var x, Var x'            -> vars_equal bimap x x'
-      | _                        -> false
+      | Opr o, Opr o' -> Op.equal (equal bndmap) o o'
+      | Bnd (left, t), Bnd (right, t') ->
+          (* Associate corresponding bindings in the bindmap *)
+          equal (Bndmap.add ~left ~right bndmap) t t'
+      | Var (Bound bnd), Var (Bound bnd') -> bindings_correlated bndmap bnd bnd'
+      | Var v, Var v' -> Var.equal v v'
+      | _ -> false
     in
-    fun a b -> equal Bindmap.empty a b
+    fun a b -> equal Bndmap.empty a b
 
   let rec to_string t =
     t |> function
@@ -279,24 +434,44 @@ module Make (Op : Operator) = struct
       | `Occurs of Var.t * t
       ]
 
-    let fail ?v t t' : error = `Unification (v, t, t')
+    let fail ?v t t' : error =
+      [%log debug "unification failure: %s <> %s " (to_string t) (to_string t')];
+      `Unification (v, t, t')
 
-    let occurs_err v t : error = `Occurs (v, t)
+    let occurs_err v t : error =
+      [%log debug "fail: %s ocurrs in %s" (Var.to_string v) (to_string t)];
+      `Occurs (v, t)
 
     (* Error when a substitution is added for a variable already assigned to an incompatible value *)
     module Subst = struct
       type term = t
 
-      type t = term ref Var.Map.t
-      (** Substitution maps free variables to mutable refs.
-          When two free variables are assigned to be aliases, they simply share the same ref.
-          Therefore, assigning one variable, sufficies to assign all of its aliases. *)
+      type t =
+        { bnds : Bndmap.t (* Correspondences between bindings *)
+        ; vars : term ref Var.Map.t
+              (* Substitution mappings from free vars to terms *)
+        }
+      (* Substitution maps free variables to mutable refs.
+         When two free variables are assigned to be aliases, they simply share the same ref.
+         Therefore, assigning one variable, sufficies to assign all of its aliases. *)
 
-      let empty = Var.Map.empty
+      let empty : t = { bnds = Bndmap.empty; vars = Var.Map.empty }
 
-      let find v s = Var.Map.find_opt v s |> Option.map (fun x -> !x)
+      (* TODO Work out coherent scheme for dealing with binder transitions! *)
 
-      let bindings s = Var.Map.bindings s |> List.map (fun (v, t) -> (v, !t))
+      let ( let* ) = Option.bind
+
+      (* Find is left-biased ito alpha equivalent variables *)
+      let find v ({ bnds; vars } : t) =
+        let* { contents = term } = Var.Map.find_opt v vars in
+        match term with
+        | Var (Bound bnd) ->
+            Bndmap.find_left bnd bnds
+            |> Option.map (fun b -> Var.of_binding b |> of_var)
+        | _               -> Some term
+
+      let bindings { vars; _ } =
+        Var.Map.bindings vars |> List.map (fun (v, t) -> (v, !t))
 
       let term_to_string = to_string
 
@@ -308,33 +483,7 @@ module Make (Op : Operator) = struct
         |> String.concat ", "
         |> Printf.sprintf "[ %s ]"
 
-      (* Effect the substitution of free variables in a term, according to the sustitution s
-       * - unassigned free var -> free var
-       * - assigned free var -> assigned value
-       * - compound term -> substitute into each of it's compounds
-       * - bound var -> bound var *)
-      let rec apply : t -> term -> term =
-       fun s term ->
-        [%log
-          debug
-            "applying substitution: %s %s"
-            (term_to_string term)
-            (to_string s)];
-        match term with
-        | Bnd (b, t') -> Bnd (b, apply s t')
-        | Opr o       -> Op.map (apply s) o |> op
-        | Var v       ->
-            if Var.is_bound v then
-              of_var v
-            else
-              Var.Map.find_opt v s
-              |> Option.map (fun { contents } ->
-                     if not (is_free_var contents) then
-                       apply s contents
-                     else
-                       contents)
-              |> Option.value ~default:term
-
+      (* TODO Remove exponential occurs check *)
       let add : t -> Var.t -> term -> (t, error) Result.t =
        fun s v term ->
         [%log
@@ -342,50 +491,100 @@ module Make (Op : Operator) = struct
             "add substitution: %s -> %s"
             (Var.to_string v)
             (term_to_string term)];
-        if (not (is_free_var term)) && Var.Set.mem v (free_vars term) then (
-          [%log
-            debug
-              "fail: %s ocurrs in %s"
-              (Var.to_string v)
-              (term_to_string term)];
+        if not (Var.is_free v) then
+          failwith "Invalid argument: Subst.add with non free var ";
+        if (not (is_free_var term)) && Var.Set.mem v (free_vars term) then
           Error (occurs_err v term)
-        ) else if not (Var.is_free v) then
-          failwith "Invalid argument: Subst.add with non free var "
         else
+          let vars = s.vars in
           match term with
           | Bnd (_, _)
           | Opr _ -> (
-              Var.Map.find_opt v s |> function
-              | None -> Ok (Var.Map.add v (ref term) s)
+              Var.Map.find_opt v vars |> function
+              | None -> Ok { s with vars = Var.Map.add v (ref term) vars }
               | Some ref_term when equal !ref_term term -> Ok s
               | Some ref_var when is_free_var !ref_var ->
                   ref_var := term;
                   Ok s
               | Some clash_term -> Error (fail ~v term !clash_term))
           | Var v' ->
-          match (Var.Map.find_opt v s, Var.Map.find_opt v' s) with
-          | Some term_ref, None -> Ok (Var.Map.add v' term_ref s)
-          | None, Some term_ref' -> Ok (Var.Map.add v term_ref' s)
+          match (Var.Map.find_opt v vars, Var.Map.find_opt v' vars) with
+          | Some term_ref, None ->
+              Ok { s with vars = Var.Map.add v' term_ref vars }
+          | None, Some term_ref' ->
+              Ok { s with vars = Var.Map.add v term_ref' vars }
           | Some term_ref, Some term_ref' ->
+              (* TODO Should this be a structural equality check? *)
               if term_ref == term_ref' then
                 Ok s
               else
                 Error (fail ~v !term_ref !term_ref')
           | None, None ->
               let ref_var = ref (of_var v) in
-              Ok (Var.Map.add v ref_var s |> Var.Map.add v' ref_var)
+              Ok
+                { s with
+                  vars = Var.Map.add v ref_var vars |> Var.Map.add v' ref_var
+                }
+
+      let log_substitution s term =
+        [%log
+          debug
+            "applying substitution: %s %s"
+            (term_to_string term)
+            (to_string s)]
+
+      (* Find the corresponding binding for substitution of a *)
+      let lookup_binding lookup bnd s =
+        let ( let* ) = Option.bind in
+        let default = bnd |> Var.of_binding |> of_var in
+        Option.value ~default
+        @@ let* f = lookup in
+           let* bnd' = f bnd s.bnds in
+           Some (Var.of_binding bnd' |> of_var)
+
+      (* Effect the substitution of free variables in a term, according to the subtitution s
+         - unassigned free var -> free var
+         - assigned free var -> assigned value
+         - compound term -> substitute into each of it's compounds
+         - bound var -> bound var
+
+         When [lookup] is provided, it tells us how to find binding
+         correlates for the apprpriate side of a unification *)
+      let apply : ?lookup:Bndmap.lookup -> t -> term -> term =
+       fun ?lookup s term ->
+        let lookup = lookup_binding lookup in
+        let rec aux s term =
+          log_substitution s term;
+          match term with
+          | Bnd (b, t')       -> Bnd (b, aux s t')
+          | Opr o             -> Op.map (aux s) o |> op
+          | Var (Bound bnd)   -> lookup bnd s
+          | Var (Free _ as v) ->
+          match Var.Map.find_opt v s.vars with
+          | None -> term
+          | Some { contents = substitute } ->
+          match substitute with
+          | Var (Bound bnd) -> lookup bnd s
+          | Var (Free _)    -> substitute
+          | _               -> aux s substitute
+        in
+        aux s term
 
       let ( let* ) = Result.bind
 
       module Op = Operator_aux (Op)
 
-      (* Caution: Here be mutability! Never allow a mutable substitution to escape! *)
+      (* Caution: Here be mutability! Never allow a mutable substitution to
+         escape the abstract type! *)
       let build a b =
         let rec aux s_res a b =
           let* s = s_res in
           match (a, b) with
           | Opr ao, Opr bo when Op.same ao bo -> Op.fold2 aux (Ok s) ao bo
-          | Bnd (_, a'), Bnd (_, b') -> aux (Ok s) a' b'
+          | Bnd (left, a'), Bnd (right, b') ->
+              (* Correlate the bindings *)
+              let s = { s with bnds = Bndmap.add ~left ~right s.bnds } in
+              aux (Ok s) a' b'
           | Var (Free _ as v), _ -> add s v b
           | _, Var (Free _ as v) -> add s v a
           | Var (Bound _), Var (Bound _) ->
@@ -394,7 +593,7 @@ module Make (Op : Operator) = struct
           | _ -> Error (fail a b)
         in
         let* subst = aux (Ok empty) a b in
-        Var.Map.iter (fun _ cell -> cell := apply subst !cell) subst;
+        Var.Map.iter (fun _ cell -> cell := apply subst !cell) subst.vars;
         Ok subst
     end
 
@@ -405,8 +604,8 @@ module Make (Op : Operator) = struct
       let result =
         [%log debug "unification start: %s =.= %s" (to_string a) (to_string b)];
         let* subst = Subst.build a b in
-        let a' = Subst.apply subst a in
-        let b' = Subst.apply subst b in
+        let a' = Subst.apply ~lookup:Bndmap.find_left subst a in
+        let b' = Subst.apply ~lookup:Bndmap.find_right subst b in
         if equal a' b' then
           Ok (a', subst)
         else
@@ -421,21 +620,9 @@ module Make (Op : Operator) = struct
               (to_string b)
               (to_string u)];
           result
-      | Error (`Occurs (v, t)) ->
+      | Error _   ->
           [%log
-            debug
-              "unification failure: %s occurs in %s"
-              (Var.to_string v)
-              (to_string t)];
-          result
-      | Error (`Unification (_, a', b')) ->
-          [%log
-            debug
-              "unification failure: %s =.= %s => %s <> %s "
-              (to_string a)
-              (to_string b)
-              (to_string a')
-              (to_string b')];
+            debug "unification failure: %s =/= %s" (to_string a) (to_string b)];
           result
 
     let ( =.= ) a b = unify a b |> Result.map fst

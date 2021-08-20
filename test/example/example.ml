@@ -119,7 +119,19 @@ module Untyped_lambda_calculus = struct
       [%expect {|true|}];
 
       s =?= s' |> Bool.to_string |> print_endline;
-      [%expect {|true|}]
+      [%expect {|true|}];
+
+      let k_combinator = lam "x" (lam "y" x) in
+      let z_M = lam "z" (v "M") in
+
+      show k_combinator;
+      [%expect {|(λx.(λy.x))|}];
+      show z_M;
+      [%expect {|(λz.M)|}];
+
+      (* Unification is "nominal" (i.e., modulo ɑ-equivalence) *)
+      show (z_M =.= k_combinator |> Result.get_ok);
+      [%expect {|(λz.(λy.z))|}]
   end
 end
 

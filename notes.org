@@ -10,3 +10,130 @@ It would be nice if terms could specify when they took a binding operator.
 Maybe with GADTs?
 ** TODO Use GADTs for a finally tagless style?
 https://ocaml.org/manual/gadts.html
+** TODO Explore use of nominal logic:
+The treatment of unification modulo ɑ-equivalence could be informed by [Andrew M.
+Pitts](https://www.cl.cam.ac.uk/~amp12/papers/nomlfo/nomlfo.pdf)' exposition
+of [Nominal Logic](https://www.cl.cam.ac.uk/~amp12/papers/nomlfo/nomlfo.pdf):
+*equivariance* (invariance under name swapping) was the key to an elegant
+algorithm.
+
+Perhaps this would also provide a cleaner way of doing variable substitution
+etc?
+** TODO Unify purely based on pointer structure?
+
+Perhaps by letting bound variables be pointers back to the whole binding scope
+in which they are bound? Then we can determine if two bound variables are equal:
+by checking if the binding structure in which they are nodes are isomorphic.?
+
+We could imagine a unification that would let (3) below go through, if the
+unification was of a possible pointer structure relative to it's position in the
+ABT, rather than to any particular pointer?
+** TODO Could we/should we reimplmenet using nominal binding?
+- See https://www.cl.cam.ac.uk/~amp12/papers/newaas/newaas-jv.pdf
+
+Nominal logic and nominal unification uses a distinction between atoms (which
+are the bindable things) and variables, "non-ground terms". We get the same
+dichotomy because we track bound and free variables separately.
+
+At minimum, we should investigate the connection between the pointer-based
+binding approach used here and the name permutation approach used in nominal
+terms.
+** TODO Replace adhoc let binding defs with module opens
+E.g.,
+
+#+begin_src ocaml
+let open Option.Let in
+#+end_src
+** TODO Investigate use in place of higher-order pattern unification
+https://homepages.inf.ed.ac.uk/jcheney/publications/cheney05unif.pdf
+
+* Unification with bindings
+
+Given terms ~a = λz.M~ and ~b = λx.(λy.x)~, where ~M~ is a free variable, ~unify
+a b~ should be ~Ok (λz.(λy.z), [M -> λy.z ])~, such that ~x~ in the
+body of the substitute for ~M~ is bound to ~λx._~ outermost in the unified term.
+
+But what should happen with terms ~a = (λz.M) N~ and ~b = (λx.(λy.x)) (λx.M)~?
+We can give ~[M -> λy.z; N -> M]~, but then ~b~ would be ~(λx.(λy.x)) (λx.λy.z)~
+which doesn't seem consistent. We need to map bound variables through the
+ɑ-equivalence of their binders.
+
+These unifications succeed (where =a ~ b= means =a= and =b= correspond via alpha
+equivalence):
+
+#+begin_src haskell
+(1) \x.M = \y.y => \x.x [M -> y (y ~ x)]
+
+(2) \x.M M = \y.(\w.y) (\w.y) => \x.(\w.x) (\w.x) [M -> \w.y (y ~ x)]
+#+end_src
+
+But the following fails:
+
+#+begin_src  haskell
+(3) \w.(\x.M) (\z.M) = \w.(\y.y) N => FAIL [M -> y (y ~ x); N -> M]
+#+end_src
+
+This is because the substitution of M in (1) and (2) preserves the *binding
+structure* in the unified terms and obeys binding scope:
+
+#+begin_src haskell
+(1)
+\x.   x ~ \y.   y
+ ^   /     ^   /
+  \_/       \_/
+
+(2)
+\x.(\w.x) (\z.x) ~ \y.(\w.y) (\z.y)
+ ^    /      /      ^    /      /
+  \__/______/        \__/______/
+#+end_src
+
+Where as the substitution in (3) would either (a) require a binding structure that
+violates proper scoping rules
+
+
+#+begin_src haskell
+(a) (3)
+\w.(\x.   x) (\z.x) !~ \w.(\y.y) (\z.y) => FAIL
+     ^   /      /
+      \_/___x__/
+            ^
+            |
+     (escapes scope)
+#+end_src
+
+or it would require we bind `M` to two differnt bound variables (=x= and =z=):
+
+#+begin_src haskell
+(b) (3)
+\w.(\x.M) (\z.M) = \w.(\y.y) N => \w.(\x.x) (\z.z) [M -> x; M -> z; N -> M]
+#+end_src
+
+To unify two bindings:
+
+#+begin_src haskell
+a = x.(M x)
+b = y.(y M)
+#+end_src
+
+1. On encountering corresponding bindings, enter them into a bidirectional map:
+
+   #+begin_src ocaml
+   Bimap.add m ~a:(x.) ~b:(y.)
+   (* {x. <-> y.} *)
+   #+end_src
+
+2. Map free variables to bound variables or ground terms in the substition:
+
+   #+begin_src ocaml
+   Subst.add s M *y
+   (* [M -> *y] *)
+   #+end_src
+
+3. Free variables mapped to bound variables *through* the reference corresponding to the
+   appropriate side of the equation:
+
+   #+begin_src ocaml
+   a[M := Subst.get s M |> Var.to_binding |> Bimap.left m |> Var.of_binding => x]
+   b[M := Subst.get s M |> Var.to_binding |> Bimap.right m |> Var.of_binding => y]
+   #+end_src
