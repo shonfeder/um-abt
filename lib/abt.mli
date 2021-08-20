@@ -162,9 +162,8 @@ module Var : sig
   module Map : Map.S with type key = t
 end
 
-(** [Make (Op)] is a module for constructing and manipulating ABTs for the
-    operators defined in [Op]. *)
-module Make (Op : Operator) : sig
+module type Syntax = sig
+  module Op : Operator
 
   (** The type of ABT's constructed from the operators defind in [O] *)
   type t = private
@@ -266,3 +265,7 @@ module Make (Op : Operator) : sig
     (** [a =?= b] is [true] iff [a =.= b] is an [Ok _] value *)
   end
 end
+
+(** [Make (Op)] is a module for constructing and manipulating the
+    {!module:Syntax} of a language with {!module:Operator}s defined by [Op]. *)
+module Make (Op : Operator) : Syntax with module Op = Op

@@ -192,7 +192,113 @@ end = struct
       M.find_opt k m.left
 end
 
+module type Syntax = sig
+  module Op : Operator
+
+  (** The type of ABT's constructed from the operators defind in [O] *)
+  type t = private
+    | Var of Var.t (** Variables *)
+    | Bnd of Var.Binding.t * t (** Scoped variable binding *)
+    | Opr of t Op.t (** Operators specified in {!Op} *)
+
+  val bind : Var.Binding.t -> t -> t
+  (** [bind bnd t] is a branch of the ABT, in which any free variables in [t]
+      matching the name of [bnd] are bound to [bnd].  *)
+
+  val of_var : Var.t -> t
+  (** [of_var v] is a leaf in the ABT consisting of the variable [v] *)
+
+  val v : string -> t
+  (** [v x] is a leaf in the ABT consisting of a variable named [x] *)
+
+  val op : t Op.t -> t
+  (** [op o] is a branch in the ABT consisting of the operator [o]  *)
+
+  val ( #. ) : string -> t -> t
+  (** [x #. t] is a new abt obtained by binding all {i free} variables named
+      [x] in [t]
+
+      Note that this does {b not} substitute variables for a {i value}, (for
+      which, see {!subst}). This only binds the free variables within the scope
+      of an abstraction that ranges over the given (sub) abt [t]. *)
+
+  val subst : Var.Binding.t -> value:t -> t -> t
+  (** [subst bnd ~value t] is a new ABT obtained by substituting [value] for
+      all variables bound to [bnd]. *)
+
+  val subst_var : string -> value:t -> t -> t
+  (** [subst_var name ~value t] is a new abt obtained by substituting [value] for
+      the outermost scope of variables bound to [name] in [t] *)
+
+  val to_string : t -> string
+  (** [to_string t] is the representation of [t] as a string *)
+
+  val equal : t -> t -> bool
+  (** [equal t t'] is [true] when [t] and [t'] are alpha equivalent and [false] otherwise *)
+
+  val case :
+       var:(Var.t -> 'a)
+    -> bnd:(Var.Binding.t * t -> 'a)
+    -> opr:(t Op.t -> 'a)
+    -> t
+    -> 'a
+  (** Case analysis for eleminating ABTs
+
+      This is an alternative to using pattern-based elimination.
+
+      @param var function to apply to variables
+      @param bnd function to apply to bindings
+      @param opr function to apply to operators *)
+
+  val subterms : t -> t list
+  (** [subterms t] is a list of all the subterms in [t], including [t] itself *)
+
+  val free_vars : t -> Var.Set.t
+  (** [free_vars t] is the set of variables that are free in in [t] *)
+
+  val is_closed : t -> bool
+  (** [is_closed t] if [true] if there are no free variables in [t], otherwise false *)
+
+  module Unification : sig
+    module Subst : sig
+      type term = t
+      (** An alias for the type of the ABT for reference in the context of the substitution *)
+
+      type t
+      (** Substitutions mapping free variables to terms *)
+
+      val find : Var.t -> t -> term option
+      (** [find v s] is [Some term] if [v] is bound to [term] in the
+          substitution [s], otherwise it is [None]*)
+
+      val bindings : t -> (Var.t * term) list
+      (** [bindings s] is a list of all the bindings in [s] *)
+
+      val to_string : t -> string
+    end
+
+    type error =
+      [ `Unification of Var.t option * t * t
+      | `Occurs of Var.t * t
+      ]
+    (** Errors returned when unification fails *)
+
+    val unify : t -> t -> (t * Subst.t, error) Result.t
+    (** [unify a b] is [Ok (union, substitution)] when [a] and [b] can be
+        unified into the term [union] and [substitution] is the most general
+        unifier. Otherwise it is [Error err)], for which, see {!type:error} *)
+
+    val ( =.= ) : t -> t -> (t, error) Result.t
+    (** [a =.= b] is [unify a b |> Result.map fst] *)
+
+    val ( =?= ) : t -> t -> bool
+    (** [a =?= b] is [true] iff [a =.= b] is an [Ok _] value *)
+  end
+end
+
 module Make (Op : Operator) = struct
+  module Op = Op
+
   type t =
     | Var of Var.t
     | Bnd of Var.Binding.t * t
@@ -427,7 +533,7 @@ module Make (Op : Operator) = struct
             (term_to_string term)
             (to_string s)]
 
-      (* Find the corresponding binding for substitution of a  *)
+      (* Find the corresponding binding for substitution of a *)
       let lookup_binding lookup bnd s =
         let ( let* ) = Option.bind in
         let default = bnd |> Var.of_binding |> of_var in
