@@ -33,8 +33,19 @@ ABT, rather than to any particular pointer?
 
 Nominal logic and nominal unification uses a distinction between atoms (which
 are the bindable things) and variables, "non-ground terms". We get the same
-dichotomy because of the "locally nameless" kind of approach, that tracks bound
-and free variables separately.
+dichotomy because we track bound and free variables separately.
+
+At minimum, we should investigate the connection between the pointer-based
+binding approach used here and the name permutation approach used in nominal
+terms.
+** TODO Replace adhoc let binding defs with module opens
+E.g.,
+
+#+begin_src ocaml
+let open Option.Let in
+#+end_src
+** TODO Investigate use in place of higher-order pattern unification
+https://homepages.inf.ed.ac.uk/jcheney/publications/cheney05unif.pdf
 
 * Unification with bindings
 

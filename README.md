@@ -43,37 +43,26 @@ This library aims for the following qualities:
 This ABT library has two distinctive (afaik) features:
 
 1. The library augments the binding functionality of the ABT approach with
-   general syntactic (perhaps later also equational) unification. We might
-   therefore describe this library as an implentation of *unifiable* abstract
-   binding trees (or UABTs). ABTs provide a generalized a reusable system for
-   variable binding for any language implemented in its terms. UABTs provide --
-   in addition -- a generalized, reusable system for (first-order, syntactic)
-   unification for any language implemented in *its* terms.
+   **unification modulo ɑ-equivalence**. We might therefore describe this
+   library as an implementation of *unifiable* abstract binding trees (or
+   UABTs): where ABTs provide a general and reusable system for variable
+   binding, UABTs add a general and reusable system for nominal unification.
 
    Unification is lovely and not used nearly enough, imo.
 
-2. It implements variable binding via (what we might call) *binding by
-   reference*; i.e., variable binding is implemented by way of "immutable"
-   reference cells. I suspect the advantages of this approach to include:
+2. The library implements variable binding via (what we might call) **binding by
+   reference**; i.e., variable binding is recorded in the pointer structure of
+   by way of "immutable" reference cells. This is somewhat of an experiment:
+   being unaware of other implementations using this approach, I worked out the
+   details as I went. So far, it seems to have yielded [trivial ɑ-equivalence
+   and substitution algorithms, and enabled nominal unification][], without
+   requiring any bureaucratic fiddling with renaming, variable permutations, or
+   fresh variables. 
+   
+**Caveat emptor**: I am not an academic PLT researcher and this library has not
+yet been used extensively.
 
-   - a trivial algorithm for computing ɑ-equivalence
-   - neutralization of the usual problem of renaming bound variables
-   - the representation is easy to read, in contrast with De Bruijn indices,
-     and, even more important, there's no tedious bookkeeping required during
-     substitution.
-   - the representation is trivial to inspect and manipulate, in contrast with
-     [HOAS][]
-
-   Note that I have not done any rigorous analysis or other work to test these
-   suspicions. Feedback or correction on these points would be welcome.
-
-   I also suspect this approach lacks the safety and formal elegance of HOAS or
-   [NbE](https://en.wikipedia.org/wiki/Normalisation_by_evaluation). The
-   approach used here is also dependent on OCaml's definition of physical
-   equality to identify `ref` cells, and on MLs ability to ensure that the
-   references are immutable via type abstraction.
-
-
+[trivial ɑ-equivalence]: https://github.com/shonfeder/um-abt/blob/trunk/lib/abt.ml
 [HOAS]: https://en.wikipedia.org/wiki/Higher-order_abstract_syntax
 
 ## Synopsis
@@ -89,23 +78,6 @@ lambda calculus using `um-abt`.
 
 ABTs representing the syntax of a language are produced by applying the
 `Abt.Make` functor to a module implementing the `Operator` specification.
-
-The generated ABT will have the following form, where `module O : Operator`:
-
-```ocaml skip
-type t = private
-  | Var of Abt.Var.t
-  | Bnd of Abt.Var.binding * t
-  | Opr of t O.t
-```
-
-Most of the values required by the `Operator` specification can be derived using
-[`ppx_deriving`](https://github.com/ocaml-ppx/ppx_deriving). So all that is
-usually required is to define a datatype representing the operators and their
-arities.
-
-After the ABT is generated However, it is recommended that one also define constructors making it
-more convenient and safer to construct terms of the language:
 
 ```ocaml
 module Syntax = struct
@@ -136,6 +108,23 @@ module Syntax = struct
     op (Lam (x #. m))
 end
 ```
+
+The generated ABT will have the following form:
+
+```ocaml skip
+type t = private
+  | Var of Abt.Var.t
+  | Bnd of Abt.Var.binding * t
+  | Opr of t O.t
+```
+
+Most of the values required by the `Operator` specification can be derived using
+[`ppx_deriving`](https://github.com/ocaml-ppx/ppx_deriving). So all that is
+usually required is to define a datatype representing the operators and their
+arities.
+
+After the ABT is generated However, it is recommended that one also define constructors making it
+more convenient and safer to construct terms of the language.
 
 The `private` annotation indicates that you can use pattern matching to
 deconstruct the ABT, but you cannot construct new values without using the
@@ -240,9 +229,10 @@ let () =
   (* Again, unification is modulo ɑ-equivalence *)
   assert (lam "y" (lam "x" y) =?= lam "x" (lam "y" x));
 
-  (* Here we unify the free variable "M" with the body of the [k] combinator *)
-  let unified_term = (lam "x" (v "M") =.= k) |> Result.get_ok in
-  assert (to_string unified_term = "(λx.(λy.x))");
+  (* Here we unify the free variable "M" with the body of the [k] combinator, 
+     note that the nominal unification is modulo bound variables: *)
+  let unified_term = (lam "z" (v "M") =.= k) |> Result.get_ok in
+  assert (to_string unified_term = "(λz.(λy.z))");
 
   (* The substitution allows retrieval the bound values of the free variables *)
   let _, substitution = unify (lam "x" (v "M")) k |> Result.get_ok in

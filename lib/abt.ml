@@ -137,7 +137,7 @@ module Operator_aux (O : Operator) = struct
   include O
 end
 
-module Bindmap : sig
+module Bndmap : sig
   type t
 
   val empty : t
@@ -149,7 +149,6 @@ module Bindmap : sig
   (* [find bnd m] is the binding corresponding to [bnd], regardless of which
      side it was entered from *)
   val find : lookup
-
 
   (* [find_left bnd m] is [bnd] if [bnd] was entered from the left, otherwise it
      is the left-side binding corresponding to the one entered on the right *)
@@ -191,7 +190,6 @@ end = struct
       Some k
     else
       M.find_opt k m.left
-
 end
 
 module Make (Op : Operator) = struct
@@ -200,8 +198,8 @@ module Make (Op : Operator) = struct
     | Bnd of Var.Binding.t * t
     | Opr of t Op.t
 
-  (* Alpha-equivalence is derived by checking that the structure of the
-     two abts is the same.
+  (* Alpha-equivalence is derived by checking that the ABTs are identical
+     modulo the pointer structure of any bound variables.
 
      - For operators, this just amounts to checking the equality supplied by the
        given {!modtype:Operator}, [O].
@@ -209,28 +207,23 @@ module Make (Op : Operator) = struct
        do take no account of names, since alpha equivalence is fundamentally
        concerned with the (anonymous) binding structure of ABTs. *)
   let equal : t -> t -> bool =
-    let vars_equal bimap x x' =
-      match Var.(to_binding x, to_binding x') with
-      | Some _, None    -> false
-      | None, Some _    -> false
-      | None, None      -> Var.equal x x'
-      | Some b, Some b' ->
-      (* Two bound variables are equal when their bindings correspond *)
-      match Bindmap.find b bimap with
-      | Some b'' -> Var.Binding.equal b' b''
-      | None     -> false
+    let bindings_correlated bndmap bnd bnd' =
+      match Bndmap.find bnd bndmap with
+      | Some bnd'' -> Var.Binding.equal bnd' bnd''
+      | None       -> false
     in
-    let rec equal : Bindmap.t -> t -> t -> bool =
-     fun bimap t t' ->
+    let rec equal : Bndmap.t -> t -> t -> bool =
+     fun bndmap t t' ->
       match (t, t') with
-      | Opr o, Opr o' -> Op.equal (equal bimap) o o'
+      | Opr o, Opr o' -> Op.equal (equal bndmap) o o'
       | Bnd (left, t), Bnd (right, t') ->
-          (* Associate corresponding bindings in a bimap *)
-          equal (Bindmap.add ~left ~right bimap) t t'
-      | Var x, Var x' -> vars_equal bimap x x'
+          (* Associate corresponding bindings in the bindmap *)
+          equal (Bndmap.add ~left ~right bndmap) t t'
+      | Var (Bound bnd), Var (Bound bnd') -> bindings_correlated bndmap bnd bnd'
+      | Var v, Var v' -> Var.equal v v'
       | _ -> false
     in
-    fun a b -> equal Bindmap.empty a b
+    fun a b -> equal Bndmap.empty a b
 
   let rec to_string t =
     t |> function
@@ -348,7 +341,7 @@ module Make (Op : Operator) = struct
       type term = t
 
       type t =
-        { bnds : Bindmap.t (* Correspondences between bindings *)
+        { bnds : Bndmap.t (* Correspondences between bindings *)
         ; vars : term ref Var.Map.t
               (* Substitution mappings from free vars to terms *)
         }
@@ -356,7 +349,7 @@ module Make (Op : Operator) = struct
          When two free variables are assigned to be aliases, they simply share the same ref.
          Therefore, assigning one variable, sufficies to assign all of its aliases. *)
 
-      let empty : t = { bnds = Bindmap.empty; vars = Var.Map.empty }
+      let empty : t = { bnds = Bndmap.empty; vars = Var.Map.empty }
 
       (* TODO Work out coherent scheme for dealing with binder transitions! *)
 
@@ -367,7 +360,7 @@ module Make (Op : Operator) = struct
         let* { contents = term } = Var.Map.find_opt v vars in
         match term with
         | Var (Bound bnd) ->
-            Bindmap.find_left bnd bnds
+            Bndmap.find_left bnd bnds
             |> Option.map (fun b -> Var.of_binding b |> of_var)
         | _               -> Some term
 
@@ -427,8 +420,21 @@ module Make (Op : Operator) = struct
                   vars = Var.Map.add v ref_var vars |> Var.Map.add v' ref_var
                 }
 
-      (* TODO Use in application *)
-      let _ = Bindmap.find_right
+      let log_substitution s term =
+        [%log
+          debug
+            "applying substitution: %s %s"
+            (term_to_string term)
+            (to_string s)]
+
+      (* Find the corresponding binding for substitution of a  *)
+      let lookup_binding lookup bnd s =
+        let ( let* ) = Option.bind in
+        let default = bnd |> Var.of_binding |> of_var in
+        Option.value ~default
+        @@ let* f = lookup in
+           let* bnd' = f bnd s.bnds in
+           Some (Var.of_binding bnd' |> of_var)
 
       (* Effect the substitution of free variables in a term, according to the subtitution s
          - unassigned free var -> free var
@@ -437,30 +443,26 @@ module Make (Op : Operator) = struct
          - bound var -> bound var
 
          When [lookup] is provided, it tells us how to find binding
-         correlates for the proper side of a unification *)
-      let apply : ?lookup:Bindmap.lookup -> t -> term -> term =
+         correlates for the apprpriate side of a unification *)
+      let apply : ?lookup:Bndmap.lookup -> t -> term -> term =
        fun ?lookup s term ->
-       let _ = lookup in
-       let rec aux s term =
-        [%log
-          debug
-            "applying substitution: %s %s"
-            (term_to_string term)
-            (to_string s)];
-        match term with
-        | Bnd (b, t')        -> Bnd (b, aux s t')
-        | Opr o              -> Op.map (aux s) o |> op
-        | Var (Bound _ as v) -> of_var v
-        | Var (Free _ as v)  ->
-            Var.Map.find_opt v s.vars
-            |> Option.map (fun { contents } ->
-                   if not (is_free_var contents) then
-                     aux s contents
-                   else
-                     contents)
-            |> Option.value ~default:term
-       in
-       aux s term
+        let lookup = lookup_binding lookup in
+        let rec aux s term =
+          log_substitution s term;
+          match term with
+          | Bnd (b, t')       -> Bnd (b, aux s t')
+          | Opr o             -> Op.map (aux s) o |> op
+          | Var (Bound bnd)   -> lookup bnd s
+          | Var (Free _ as v) ->
+          match Var.Map.find_opt v s.vars with
+          | None -> term
+          | Some { contents = substitute } ->
+          match substitute with
+          | Var (Bound bnd) -> lookup bnd s
+          | Var (Free _)    -> substitute
+          | _               -> aux s substitute
+        in
+        aux s term
 
       let ( let* ) = Result.bind
 
@@ -475,7 +477,7 @@ module Make (Op : Operator) = struct
           | Opr ao, Opr bo when Op.same ao bo -> Op.fold2 aux (Ok s) ao bo
           | Bnd (left, a'), Bnd (right, b') ->
               (* Correlate the bindings *)
-              let s = { s with bnds = Bindmap.add ~left ~right s.bnds } in
+              let s = { s with bnds = Bndmap.add ~left ~right s.bnds } in
               aux (Ok s) a' b'
           | Var (Free _ as v), _ -> add s v b
           | _, Var (Free _ as v) -> add s v a
@@ -495,10 +497,9 @@ module Make (Op : Operator) = struct
      fun a b ->
       let result =
         [%log debug "unification start: %s =.= %s" (to_string a) (to_string b)];
-        (* TODO Build bmap *)
         let* subst = Subst.build a b in
-        let a' = Subst.apply subst a in
-        let b' = Subst.apply subst b in
+        let a' = Subst.apply ~lookup:Bndmap.find_left subst a in
+        let b' = Subst.apply ~lookup:Bndmap.find_right subst b in
         if equal a' b' then
           Ok (a', subst)
         else

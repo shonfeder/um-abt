@@ -20,7 +20,7 @@ SOFTWARE. *)
 
 open QCheck
 
-let count = 1000
+let count = 10000
 
 let property name = Test.make ~count ~name
 
@@ -81,15 +81,17 @@ let unification_tests =
     Result.get_ok result
   in
   let open Unification in
-  [ property "unification -- reflexivity" term (fun t -> t =?= t)
-  ; property "unification -- symmetry" (two term) (fun (a, b) ->
+  [ property "prolog -- unification -- reflexivity" term (fun t -> t =?= t)
+  ; property "prolog -- unification -- symmetry" (two term) (fun (a, b) ->
         a =?= b ==> (b =?= a))
-  ; property "unification -- transitivity" (three term) (fun (a, b, c) ->
+  ;
+    (* TODO Fix transitivity when ocurrs check fails. Use seed 399269583  *)
+    property "prolog -- unification -- transitivity" (three term) (fun (a, b, c) ->
         let a_b = a =.= b |> assume_unified in
         let b_c = a_b =.= c |> assume_unified in
         a =?= b_c)
   ; property
-      "unification -- free variables unify (unless occurs check fails)"
+      "prolog -- unification -- free variables unify (unless occurs check fails)"
       (pair Abt_gen.Var.arbitrary_free term)
       (fun (v, t) ->
         match of_var v =.= t with
@@ -106,10 +108,10 @@ let unification_tests =
             Abt.Var.equal v v' && equal t t'
         (* Any other failure is an incorrect *)
         | _ -> false)
-  ; property "unification -- equal terms unify" (two term) (fun (a, b) ->
+  ; property "prolog -- unification -- equal terms unify" (two term) (fun (a, b) ->
         (not (equal a b)) || a =?= b)
   ; property
-      "unification -- all free vars in terms are bound to subterms in \
+      "prolog -- unification -- all free vars in terms are bound to subterms in \
        unification"
       (two term)
       (fun (a, b) ->

@@ -88,7 +88,7 @@ module Prolog = struct
                  ; (1, map v Var.var_name_gen_caps)
                  ]
            | n ->
-               map2 comp Var.var_name_gen (list_size (0 -- 5) (self (n / 10))))
+               map2 comp Var.var_name_gen (list_size (0 -- 10) (self (n / 10))))
 
   let rec shrink t =
     let open QCheck.Iter in
