@@ -1,3 +1,11 @@
+## v0.1.4
+
+- Add conflict with `result < 1.5`
+- Remove lower bound on ocaml compiler
+- Add Syntax signature
+- Fix nominal unification
+- Fix cyclic term detection
+
 ## v0.1.3
 
 - Put lower bound of 4.08.0 on ocaml compiler
