@@ -20,7 +20,7 @@ SOFTWARE. *)
 
 open QCheck
 
-let count = 1000
+let count = 10000
 
 let property name = Test.make ~count ~name
 
@@ -177,12 +177,9 @@ module Prolog_unification_properties = Unification_properties (struct
   let term = arbitrary_prolog_term
 end)
 
-
-
-
 let () =
   (* Logs.set_level (Some Logs.Debug); *)
-  (* QCheck_runner.set_seed 399269583; *)
+  (* QCheck_runner.set_seed 110686606; *)
   QCheck_runner.run_tests_main
     (utlc_tests
     @ Utlc_unification_properties.properties

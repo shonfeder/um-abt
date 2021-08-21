@@ -44,8 +44,15 @@ E.g.,
 #+begin_src ocaml
 let open Option.Let in
 #+end_src
-** TODO Investigate use in place of higher-order pattern unification
+** TODO Investigate use of nominal unificaiton in place of higher-order pattern unification
 https://homepages.inf.ed.ac.uk/jcheney/publications/cheney05unif.pdf
+** TODO Tend to performance
+*** TODO Benchmark
+*** TODO Eliminate obvious exponentials
+(e.g., current occurs check)
+*** TODO Ensure tail call optimization
+*** TODO Use iterators instead of lists where appropriate
+*** TODO Look at using containers?
 
 * Unification with bindings
 
@@ -102,7 +109,7 @@ violates proper scoping rules
      (escapes scope)
 #+end_src
 
-or it would require we bind `M` to two differnt bound variables (=x= and =z=):
+or it would require we bind `M` to two different bound variables (=x= and =z=):
 
 #+begin_src haskell
 (b) (3)
