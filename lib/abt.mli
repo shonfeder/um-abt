@@ -250,6 +250,7 @@ module type Syntax = sig
     type error =
       [ `Unification of Var.t option * t * t
       | `Occurs of Var.t * t
+      | `Cycle of Subst.t
       ]
     (** Errors returned when unification fails *)
 

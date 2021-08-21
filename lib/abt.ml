@@ -123,6 +123,7 @@ module Operator_aux (O : Operator) = struct
   let to_list : 'a O.t -> 'a List.t =
    fun o -> O.fold (Fun.flip List.cons) [] o |> List.rev
 
+  (** Derives a fold2 implementation from the required fold *)
   let fold2 : ('a -> 'b -> 'c -> 'a) -> 'a -> 'b O.t -> 'c O.t -> 'a =
    fun f init o o' ->
     let app (list_o', acc) o =
@@ -197,9 +198,9 @@ module type Syntax = sig
 
   (** The type of ABT's constructed from the operators defind in [O] *)
   type t = private
-    | Var of Var.t (** Variables *)
-    | Bnd of Var.Binding.t * t (** Scoped variable binding *)
-    | Opr of t Op.t (** Operators specified in {!Op} *)
+    | Var of Var.t  (** Variables *)
+    | Bnd of Var.Binding.t * t  (** Scoped variable binding *)
+    | Opr of t Op.t  (** Operators specified in {!Op} *)
 
   val bind : Var.Binding.t -> t -> t
   (** [bind bnd t] is a branch of the ABT, in which any free variables in [t]
@@ -280,6 +281,7 @@ module type Syntax = sig
     type error =
       [ `Unification of Var.t option * t * t
       | `Occurs of Var.t * t
+      | `Cycle of Subst.t
       ]
     (** Errors returned when unification fails *)
 
@@ -429,16 +431,11 @@ module Make (Op : Operator) = struct
      * TODO To optimize: need to unify on a single pass, which will require way of identifying if two
      * operators have the same head. Perhaps via an operator function `sort : O.t -> (string * int)`? *)
 
-    type error =
-      [ `Unification of Var.t option * t * t
-      | `Occurs of Var.t * t
-      ]
-
-    let fail ?v t t' : error =
+    let fail ?v t t' =
       [%log debug "unification failure: %s <> %s " (to_string t) (to_string t')];
       `Unification (v, t, t')
 
-    let occurs_err v t : error =
+    let occurs_err v t =
       [%log debug "fail: %s ocurrs in %s" (Var.to_string v) (to_string t)];
       `Occurs (v, t)
 
@@ -483,8 +480,11 @@ module Make (Op : Operator) = struct
         |> String.concat ", "
         |> Printf.sprintf "[ %s ]"
 
-      (* TODO Remove exponential occurs check *)
-      let add : t -> Var.t -> term -> (t, error) Result.t =
+      let cycle_err s =
+        [%log debug "fail: cycle between variables %s" (to_string s)];
+        `Cycle (s)
+
+      let add =
        fun s v term ->
         [%log
           debug
@@ -493,6 +493,7 @@ module Make (Op : Operator) = struct
             (term_to_string term)];
         if not (Var.is_free v) then
           failwith "Invalid argument: Subst.add with non free var ";
+        (* TODO Remove exponential occurs check *)
         if (not (is_free_var term)) && Var.Set.mem v (free_vars term) then
           Error (occurs_err v term)
         else
@@ -542,6 +543,8 @@ module Make (Op : Operator) = struct
            let* bnd' = f bnd s.bnds in
            Some (Var.of_binding bnd' |> of_var)
 
+      exception Cycle_in_apply of t
+
       (* Effect the substitution of free variables in a term, according to the subtitution s
          - unassigned free var -> free var
          - assigned free var -> assigned value
@@ -552,23 +555,28 @@ module Make (Op : Operator) = struct
          correlates for the apprpriate side of a unification *)
       let apply : ?lookup:Bndmap.lookup -> t -> term -> term =
        fun ?lookup s term ->
+        [%log debug "apply invoked for %s" (term_to_string term)];
         let lookup = lookup_binding lookup in
-        let rec aux s term =
+        (* cyc_vars are the vars we're already tring to substitute for
+           lets us detect cycles *)
+        let rec aux cyc_vars s term =
           log_substitution s term;
           match term with
-          | Bnd (b, t')       -> Bnd (b, aux s t')
-          | Opr o             -> Op.map (aux s) o |> op
+          | Bnd (b, t')       -> Bnd (b, aux cyc_vars s t')
+          | Opr o             -> Op.map (aux cyc_vars s) o |> op
           | Var (Bound bnd)   -> lookup bnd s
           | Var (Free _ as v) ->
           match Var.Map.find_opt v s.vars with
           | None -> term
-          | Some { contents = substitute } ->
-          match substitute with
-          | Var (Bound bnd) -> lookup bnd s
-          | Var (Free _)    -> substitute
-          | _               -> aux s substitute
+          | Some { contents = substitute } -> (
+              if Var.Set.mem v cyc_vars then raise (Cycle_in_apply s);
+              let cyc_vars = Var.Set.add v cyc_vars in
+              match substitute with
+              | Var (Bound bnd) -> lookup bnd s
+              | Var (Free _)    -> substitute
+              | _               -> aux cyc_vars s substitute)
         in
-        aux s term
+        aux Var.Set.empty s term
 
       let ( let* ) = Result.bind
 
@@ -577,6 +585,11 @@ module Make (Op : Operator) = struct
       (* Caution: Here be mutability! Never allow a mutable substitution to
          escape the abstract type! *)
       let build a b =
+        [%log
+          debug
+            "building substitution for %s %s"
+            (term_to_string a)
+            (term_to_string b)];
         let rec aux s_res a b =
           let* s = s_res in
           match (a, b) with
@@ -593,13 +606,28 @@ module Make (Op : Operator) = struct
           | _ -> Error (fail a b)
         in
         let* subst = aux (Ok empty) a b in
-        Var.Map.iter (fun _ cell -> cell := apply subst !cell) subst.vars;
-        Ok subst
+        try
+          Var.Map.iter (fun _ cell -> cell := apply subst !cell) subst.vars;
+          [%log
+            debug
+              "substution for %s %s built: %s"
+              (term_to_string a)
+              (term_to_string b)
+              (to_string subst)];
+          Ok subst
+        with
+        | Cycle_in_apply s -> Error (cycle_err s)
     end
 
     let ( let* ) = Result.bind
 
-    let unify : t -> t -> (t * Subst.t, error) Result.t =
+    type error =
+      [ `Unification of Var.t option * t * t
+      | `Occurs of Var.t * t
+      | `Cycle of Subst.t
+      ]
+
+    let unify =
      fun a b ->
       let result =
         [%log debug "unification start: %s =.= %s" (to_string a) (to_string b)];
