@@ -1,3 +1,7 @@
+## v0.1.5
+
+- Fix bug in ɑ-equivalence algorithm (See f89271)
+
 ## v0.1.4
 
 - Add conflict with `result < 1.5`
