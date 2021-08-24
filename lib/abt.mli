@@ -137,6 +137,9 @@ module Var : sig
 
   val to_string : t -> string
 
+  (** Includes the unique ID of any bound variables *)
+  val to_string_debug : t -> string
+
   val name : t -> string
   (** [name v] is [to_string v] *)
 

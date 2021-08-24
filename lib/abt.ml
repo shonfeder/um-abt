@@ -18,6 +18,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. *)
 
+module Log = Logs
+
 module type Operator = sig
   (** An operator *)
 
@@ -34,23 +36,40 @@ end
 
 module Var = struct
   module Binding = struct
-    type t = string ref
+    (* A private table of the number of times a name has been bound *)
+    let bnd_names : (string, int) Hashtbl.t = Hashtbl.create 100
 
-    let v s = ref s
+    let name_count n = Hashtbl.find_opt bnd_names n |> Option.value ~default:0
 
-    let name bnd = !bnd
+    let add_name n =
+      let count = name_count n + 1 in
+      Hashtbl.add bnd_names n count;
+      count
+
+    type t = (string * int) ref
+
+    let v s = ref (s, add_name s)
+
+    (** Just the string component of the name *)
+    let name bnd = !bnd |> fst
+
+    (** Representation of name that includes the unique id *)
+    let name_debug bnd =
+      let (n, c) = !bnd in
+      (n ^ Int.to_string c)
 
     let compare a b =
+      (* Physical equality of references *)
       if a == b then
         0
       else
-        let cmp = String.compare !a !b in
-        match cmp with
-        | 0 ->
-            -1
-            (* If different refs with the same names,
-               then we just take the second ref to be bigger *)
-        | _ -> cmp
+        let (a_name, a_count) = !a in
+        let (b_name, b_count) = !b in
+        let name_cmp = String.compare a_name b_name in
+        if name_cmp = 0 then
+          Int.compare a_count b_count
+        else
+          name_cmp
 
     let equal a b = Int.equal (compare a b) 0
   end
@@ -82,9 +101,13 @@ module Var = struct
 
   let name = function
     | Free s  -> s
-    | Bound b -> !b
+    | Bound b -> Binding.name b
 
   let to_string = name
+
+  let to_string_debug = function
+    | Free s -> s
+    | Bound b -> Binding.name_debug b
 
   let v s = Free s
 
@@ -92,7 +115,7 @@ module Var = struct
     match v with
     | Bound _   -> None
     | Free name ->
-        if name = !b then
+        if String.equal name (Binding.name b) then
           Some (Bound b)
         else
           None
@@ -149,7 +172,7 @@ module Bndmap : sig
 
   (* [find bnd m] is the binding corresponding to [bnd], regardless of which
      side it was entered from *)
-  val find : lookup
+  (* val find : lookup *)
 
   (* [find_left bnd m] is [bnd] if [bnd] was entered from the left, otherwise it
      is the left-side binding corresponding to the one entered on the right *)
@@ -175,10 +198,10 @@ end = struct
 
   (* Var.Binding.t are unique (because identified by pointer location reference)
      so we don't need safety constraints on lookup etc. *)
-  let find k m =
-    match M.find_opt k m.left with
-    | None   -> M.find_opt k m.right
-    | Some v -> Some v
+  (* let find k m =
+   *   match M.find_opt k m.left with
+   *   | None   -> M.find_opt k m.right
+   *   | Some v -> Some v *)
 
   let find_left k m =
     if M.mem k m.left then
@@ -306,6 +329,12 @@ module Make (Op : Operator) = struct
     | Bnd of Var.Binding.t * t
     | Opr of t Op.t
 
+  let rec to_string t =
+    t |> function
+    | Var v        -> Var.to_string v
+    | Bnd (b, abt) -> Var.(name @@ of_binding b) ^ "." ^ to_string abt
+    | Opr op       -> Op.map to_string op |> Op.to_string
+
   (* Alpha-equivalence is derived by checking that the ABTs are identical
      modulo the pointer structure of any bound variables.
 
@@ -316,12 +345,13 @@ module Make (Op : Operator) = struct
        concerned with the (anonymous) binding structure of ABTs. *)
   let equal : t -> t -> bool =
     let bindings_correlated bndmap bnd bnd' =
-      match Bndmap.find bnd bndmap with
+      match Bndmap.find_right bnd bndmap with
       | Some bnd'' -> Var.Binding.equal bnd' bnd''
       | None       -> false
     in
     let rec equal : Bndmap.t -> t -> t -> bool =
      fun bndmap t t' ->
+      [%log debug "check ɑ-equality of %s %s" (to_string t) (to_string t')];
       match (t, t') with
       | Opr o, Opr o' -> Op.equal (equal bndmap) o o'
       | Bnd (left, t), Bnd (right, t') ->
@@ -332,12 +362,6 @@ module Make (Op : Operator) = struct
       | _ -> false
     in
     fun a b -> equal Bndmap.empty a b
-
-  let rec to_string t =
-    t |> function
-    | Var v        -> Var.to_string v
-    | Bnd (b, abt) -> Var.(name @@ of_binding b) ^ "." ^ to_string abt
-    | Opr op       -> Op.map to_string op |> Op.to_string
 
   let of_var : Var.t -> t = fun v -> Var v
 
@@ -419,8 +443,6 @@ module Make (Op : Operator) = struct
   let is_closed : t -> bool = fun t -> Var.Set.is_empty (free_vars t)
 
   module Unification = struct
-    module Log = Logs
-
     (* Initial, naive approach:
      *   1. get all free vars of a and b
      *   1. build mgu and substitute for all vars
@@ -482,10 +504,9 @@ module Make (Op : Operator) = struct
 
       let cycle_err s =
         [%log debug "fail: cycle between variables %s" (to_string s)];
-        `Cycle (s)
+        `Cycle s
 
-      let add =
-       fun s v term ->
+      let add s v term =
         [%log
           debug
             "add substitution: %s -> %s"
@@ -574,7 +595,9 @@ module Make (Op : Operator) = struct
               match substitute with
               | Var (Bound bnd) -> lookup bnd s
               | Var (Free _)    -> substitute
-              | _               -> aux cyc_vars s substitute)
+              | _               ->
+                  (* TODO Shouldn't need to recurse down except to replace bindings for a side  *)
+                  aux cyc_vars s substitute)
         in
         aux Var.Set.empty s term
 
@@ -627,13 +650,17 @@ module Make (Op : Operator) = struct
       | `Cycle of Subst.t
       ]
 
-    let unify =
-     fun a b ->
+    let unify a b =
       let result =
         [%log debug "unification start: %s =.= %s" (to_string a) (to_string b)];
         let* subst = Subst.build a b in
         let a' = Subst.apply ~lookup:Bndmap.find_left subst a in
         let b' = Subst.apply ~lookup:Bndmap.find_right subst b in
+        [%log
+          debug
+            "checking for alpha equivalence: %s = %s"
+            (to_string a')
+            (to_string b')];
         if equal a' b' then
           Ok (a', subst)
         else

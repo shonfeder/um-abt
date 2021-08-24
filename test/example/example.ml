@@ -131,7 +131,38 @@ module Untyped_lambda_calculus = struct
 
       (* Unification is "nominal" (i.e., modulo ɑ-equivalence) *)
       show (z_M =.= k_combinator |> Result.get_ok);
-      [%expect {|(λz.(λy.z))|}]
+      [%expect {|(λz.(λy.z))|}];
+
+      (* These two terms turned up a problem in the ɑ-equivalence alogrithm *)
+      let lhs =
+        lam
+          "a"
+          (lam
+             "e"
+             (app
+                (lam "f" (lam "r" (lam "q" (app (v "u") (v "x")))))
+                (lam
+                   "s"
+                   (app
+                      (app (lam "i" (v "m")) (lam "t" (v "y")))
+                      (app (app (v "c") (v "j")) (lam "f" (v "a")))))))
+      in
+      let rhs = lam "n" (lam "b" (app (lam "c" (v "l")) (lam "n" (v "v")))) in
+      show lhs;
+      [%expect
+        {|(λa.(λe.((λf.(λr.(λq.(u x)))) (λs.(((λi.m) (λt.y)) ((c j) (λf.a)))))))|}];
+      show rhs;
+      [%expect {|(λn.(λb.((λc.l) (λn.v))))|}];
+
+      show (lhs =.= rhs |> Result.get_ok);
+      [%expect
+        {|(λa.(λe.((λf.(λr.(λq.(u x)))) (λs.(((λi.m) (λt.y)) ((c j) (λf.a)))))))|}];
+
+      show (rhs =.= lhs |> Result.get_ok);
+      [%expect
+        {|(λn.(λb.((λc.(λr.(λq.(u x)))) (λn.(((λi.m) (λt.y)) ((c j) (λf.n)))))))|}];
+
+      assert (equal (rhs =.= lhs |> Result.get_ok) (lhs =.= rhs |> Result.get_ok))
   end
 end
 

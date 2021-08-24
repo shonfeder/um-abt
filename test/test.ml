@@ -179,7 +179,7 @@ end)
 
 let () =
   (* Logs.set_level (Some Logs.Debug); *)
-  (* QCheck_runner.set_seed 110686606; *)
+  (* QCheck_runner.set_seed 86516582; *)
   QCheck_runner.run_tests_main
     (utlc_tests
     @ Utlc_unification_properties.properties
