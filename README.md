@@ -73,8 +73,8 @@ extensive examples, see
 
 ### An ABT for the λ-calculus
 
-Here is a short example showing a naive implementation of the simply typed
-lambda calculus using `um-abt`.
+Here is a short example showing a naive implementation of the untyped lambda
+calculus using `um-abt`.
 
 ABTs representing the syntax of a language are produced by applying the
 `Abt.Make` functor to a module implementing the `Operator` specification.
