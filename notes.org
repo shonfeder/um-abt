@@ -8,6 +8,8 @@ These are rough notes and ideas
 ** TODO Figure out how to expose the type Abt.binding to construction in operators
 It would be nice if terms could specify when they took a binding operator.
 Maybe with GADTs?
+** TODO Add default syntax ser/de
+Start with just basic s-exprs
 ** TODO Use GADTs for a finally tagless style?
 https://ocaml.org/manual/gadts.html
 ** TODO Explore use of nominal logic:
