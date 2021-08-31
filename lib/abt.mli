@@ -20,42 +20,107 @@ SOFTWARE. *)
 
 (** {1 Overview}
 
-    [um-abt] is a library for representing and manipulating the the syntax of
-    languages that use {{!module:Var} variables}.
+    [um-abt] is a library for constructing and manipulating the abstract syntax
+    of languages that use {{!module:Var} variables}.
 
-    [um-abt] provides abstract binding trees (ABTs). An abstract binding tree is
-    an {i abstract syntax tree}, enriched with constructs to manage variable
-    binding and scope.
+    [um-abt] provides unifiable abstract binding trees (UABTs). An {b abstract
+    binding tree} (ABT) is an {i abstract syntax tree} (AST), enriched with
+    constructs to manage variable binding and scope.
 
-    [um-abt] also supports {{!module:Make.Unification} unification} over
-    ABTs.
+    [um-abt] extends ABTs with support for {{!module:Make.Unification} nominal
+    unification} (unificaiton modulo ɑ-equivalence).
 
     {1 Example}
 
-      A typical example of a module satisfying this interface, used to represent
-      the syntax of the untyped lambda calculus:
+    A succinct example of the typical use of this library can be seen in the
+    following implementation of the untyped λ-calculus.
 
-      {[
-        module O = struct
-          type 'a t =
-            | App of 'a * 'a
-            | Lam of 'a
-          [@@deriving eq, map, fold]
+    Define your language's operators:
 
-          let to_string : string t -> string = function
-            | App (l, m) -> Printf.sprintf "(%s %s)" l m
-            | Lam abs    -> Printf.sprintf "(λ%s)" abs
-        end
+    {[
+     (* Define the usual operators, but without the variables, since we get those free *)
+      module O = struct
+        type 'a t =
+          | App of 'a * 'a
+          | Lam of 'a
+        [@@deriving eq, map, fold]
 
-        include Abt.Make (O)
-      ]}
+        let to_string : string t -> string = function
+          | App (l, m) -> Printf.sprintf "(%s %s)" l m
+          | Lam abs    -> Printf.sprintf "(λ%s)" abs
+      end
+    ]}
 
-      Note the use of {{:https://github.com/ocaml-ppx/ppx_deriving}
-      ppx_deriving} to derive most values automatically.
+    (Note the use of {{:https://github.com/ocaml-ppx/ppx_deriving} ppx_deriving}
+    to derive most values automatically.)
 
- *)
+    Generate your the ABT representing your syntax, and define combinators to
+    easily and safely construct terms of your lanugage construct:
 
-(** {1 Interfaces} *)
+    {[
+      (* Generate the syntax, which will include a type [t] of the ABTs over the operators **)
+      open Abt.Make (O)
+
+      (* Define some constructors to ensure correct construction *)
+
+      let app m n : t =
+        (* [op] lifts an operator into an ABT *)
+        op (App (m, n))
+
+      let lam x m : t =
+        (* ["x" #. scope] binds all free variables named "x" in the [scope] *)
+        op (Lam (x #. m))
+    ]}
+
+    Define the dynamics of your language (here using the variable substitution
+    function [subst], provided by the generated syntax):
+
+    {[
+      let rec eval : t -> t =
+        fun t ->
+        match t with
+        | Opr (App (m, n)) -> apply (eval m) (eval n)
+        (* No other terms can be evaluated *)
+        | _                -> t
+
+      and apply : t -> t -> t =
+        fun m n ->
+        match m with
+        | Bnd (bnd, t)  -> subst bnd ~value:n t
+        | Opr (Lam bnd) -> eval (apply bnd n)
+        (* otherwise the application can't be evaluated *)
+        | _             -> app m n
+    ]}
+
+    Enjoy unification and ɑ-equivalence:
+
+    {[
+      (* An example term *)
+      let k = lam "x" (lam "y" x)
+
+      (* The generated [Syntax] module includes a [Unification] submodule
+
+         - the [=?=] operator checks for unifiability
+         - the [=.=] operator gives an [Ok] result with the unified term, if its operands unify,
+           or else an [Error] indicating why the unification failed
+         - the [unify] function is like [=.=], but it also gives the substitution used to produce
+           a unified term *)
+      let ((=?=), (=.=), unify) = Unification.((=?=), (=.=), unify) in
+
+      (* A free variable will unify with anything *)
+      assert (v "X" =?= s);
+
+      (* Unification is modulo ɑ-equivalence *)
+      assert (lam "y" (lam "x" y) =?= lam "x" (lam "y" x));
+
+      (* Here we unify the free variable "M" with the body of the [k] combinator,
+         note that the nominal unification is modulo bound variables: *)
+      let unified_term = (lam "z" (v "M") =.= k) |> Result.get_ok in
+      assert (to_string unified_term = "(λz.(λy.z))");
+    ]}
+*)
+
+(** {1 Modules and interfaces} *)
 
 (** The interface for a module that defines the operators of a language *)
 module type Operator = sig
@@ -79,8 +144,6 @@ module type Operator = sig
 
   val to_string : string t -> string
 end
-
-(** {1 Top-level modules} *)
 
 (** Variables, named by strings, which can be bound to a {!module:Var.Binding} or
     left free. *)
@@ -165,6 +228,7 @@ module Var : sig
   module Map : Map.S with type key = t
 end
 
+(** The interface of the family of UABTs representings a syntax *)
 module type Syntax = sig
   module Op : Operator
 
