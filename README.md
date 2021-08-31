@@ -9,6 +9,7 @@
         - [Documentation](#documentation)
         - [Aims](#aims)
         - [Features](#features)
+        - [Installation](#installation)
     - [Synopsis](#synopsis)
         - [An ABT for the λ-calculus](#an-abt-for-the-λ-calculus)
         - [Unification over λ-calculus terms](#unification-over-λ-calculus-terms)
@@ -64,6 +65,21 @@ yet been used extensively.
 
 [trivial ɑ-equivalence]: https://github.com/shonfeder/um-abt/blob/trunk/lib/abt.ml
 [HOAS]: https://en.wikipedia.org/wiki/Higher-order_abstract_syntax
+
+### Installation
+
+The latest released version can be installed with
+[opam](https://opam.ocaml.org/doc/Install.html#Binary-distribution):
+
+``` sh
+opam install um-abt
+```
+
+To install the head of development
+
+``` sh
+opam pin git@github.com:shonfeder/um-abt.git
+```
 
 ## Synopsis
 
@@ -159,8 +175,12 @@ let () =
 ```
 
 
-Now let's define reduction, using the API provided by our generated `Syntax`. We
-use pattern matching to j
+Now let's define reduction, using the API provided by our generated `Syntax`.
+`Syntax` modules expose `private` value constructors, which provide a
+pattern-matching based interface for destructuring ABTs, but prevents
+constructing new ABTs directly. This gives us the convenience of a pattern
+matching API without compromising the integrity of the ABT representation by
+allowing ill-formed structures.
 
 ```ocaml
 open Syntax
@@ -252,9 +272,10 @@ let () =
   variables was influenced by his post ["Locally
   Nameless"](https://boarders.github.io/posts/locally-nameless.html).
 
-- The initial implementation of ABTs in OCaml was informed by [Neel
+- My initial implementation of an ABT library was informed by [Neel
   Krishnaswami](https://www.cl.cam.ac.uk/~nk480/)'s [post on
   ABTs](https://semantic-domain.blogspot.com/2015/03/abstract-binding-trees.html).
+  There are still some aspects of that approach that show up here.
 
 - I consulted [Christian Urban](https://nms.kcl.ac.uk/christian.urban/)'s paper
   [Nominal Unification Revisited](https://arxiv.org/pdf/1012.4890.pdf) and
