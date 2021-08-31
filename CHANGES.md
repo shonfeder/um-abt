@@ -1,3 +1,7 @@
+## v0.1.6
+
+- Improve documentation
+
 ## v0.1.5
 
 - Fix bug in ɑ-equivalence algorithm (See f89271)
