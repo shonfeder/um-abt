@@ -71,13 +71,13 @@ yet been used extensively.
 The latest released version can be installed with
 [opam](https://opam.ocaml.org/doc/Install.html#Binary-distribution):
 
-``` sh
+```sh skip
 opam install um-abt
 ```
 
 To install the head of development
 
-``` sh
+```sh skip
 opam pin git@github.com:shonfeder/um-abt.git
 ```
 
