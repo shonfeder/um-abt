@@ -19,10 +19,10 @@
 
 ## Overview
 
-`um-abt` is OCaml library implementing abstract binding trees (ABTs) exhibiting
-the properties defined in [Robert Harper](https://www.cs.cmu.edu/~rwh/pfpl/)'s
-[Practical Foundations for Programming
-Labguages](https://www.cs.cmu.edu/~rwh/pfpl/) (PFPL).
+`um-abt` is an OCaml library implementing abstract binding trees (ABTs)
+exhibiting the properties defined in [Robert
+Harper](https://www.cs.cmu.edu/~rwh/pfpl/)'s [Practical Foundations for
+Programming Labguages](https://www.cs.cmu.edu/~rwh/pfpl/) (PFPL).
 
 ### Documentation
 
