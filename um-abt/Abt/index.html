@@ -1,13 +1,57 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Abt (um-abt.Abt)</title><link rel="stylesheet" href="../../odoc.css"/><meta charset="utf-8"/><meta name="generator" content="odoc 1.5.3"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body><div class="content"><header><nav><a href="../index.html">Up</a> – <a href="../index.html">um-abt</a> &#x00BB; Abt</nav><h1>Module <code>Abt</code></h1><h2 id="overview"><a href="#overview" class="anchor"></a>Overview</h2><p><code>um-abt</code> is a library for representing and manipulating the the syntax of languages that use <a href="Var/index.html"><span>variables</span></a>.</p><p><code>um-abt</code> provides abstract binding trees (ABTs). An abstract binding tree is an <i>abstract syntax tree</i>, enriched with constructs to manage variable binding and scope.</p><p><code>um-abt</code> also supports <a href="Make/Unification/index.html"><span>unification</span></a> over ABTs.</p><h2 id="example"><a href="#example" class="anchor"></a>Example</h2><p>A typical example of a module satisfying this interface, used to represent the syntax of the untyped lambda calculus:</p><pre><code class="ml">module O = struct
-  type 'a t =
-    | App of 'a * 'a
-    | Lam of 'a
-  [@@deriving eq, map, fold]
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Abt (um-abt.Abt)</title><link rel="stylesheet" href="../../odoc.css"/><meta charset="utf-8"/><meta name="generator" content="odoc 1.5.3"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body><div class="content"><header><nav><a href="../index.html">Up</a> – <a href="../index.html">um-abt</a> &#x00BB; Abt</nav><h1>Module <code>Abt</code></h1><h2 id="overview"><a href="#overview" class="anchor"></a>Overview</h2><p><code>um-abt</code> is a library for constructing and manipulating the abstract syntax of languages that use <a href="Var/index.html"><span>variables</span></a>.</p><p><code>um-abt</code> provides unifiable abstract binding trees (UABTs). An <b>abstract binding tree</b> (ABT) is an <i>abstract syntax tree</i> (AST), enriched with constructs to manage variable binding and scope.</p><p><code>um-abt</code> extends ABTs with support for <a href="Make/Unification/index.html"><span>nominal unification</span></a> (unificaiton modulo ɑ-equivalence).</p><h2 id="example"><a href="#example" class="anchor"></a>Example</h2><p>A succinct example of the typical use of this library can be seen in the following implementation of the untyped λ-calculus.</p><p>Define your language's operators:</p><pre><code class="ml">(* Define the usual operators, but without the variables, since we get those free *)
+ module O = struct
+   type 'a t =
+     | App of 'a * 'a
+     | Lam of 'a
+   [@@deriving eq, map, fold]
 
-  let to_string : string t -&gt; string = function
-    | App (l, m) -&gt; Printf.sprintf &quot;(%s %s)&quot; l m
-    | Lam abs    -&gt; Printf.sprintf &quot;(λ%s)&quot; abs
-end
+   let to_string : string t -&gt; string = function
+     | App (l, m) -&gt; Printf.sprintf &quot;(%s %s)&quot; l m
+     | Lam abs    -&gt; Printf.sprintf &quot;(λ%s)&quot; abs
+ end</code></pre><p>(Note the use of <a href="https://github.com/ocaml-ppx/ppx_deriving">ppx_deriving</a> to derive most values automatically.)</p><p>Generate your the ABT representing your syntax, and define combinators to easily and safely construct terms of your lanugage construct:</p><pre><code class="ml">(* Generate the syntax, which will include a type [t] of the ABTs over the operators **)
+open Abt.Make (O)
 
-include Abt.Make (O)</code></pre><p>Note the use of <a href="https://github.com/ocaml-ppx/ppx_deriving">ppx_deriving</a> to derive most values automatically.</p><nav class="toc"><ul><li><a href="#interfaces">Interfaces</a></li><li><a href="#top-level-modules">Top-level modules</a></li></ul></nav></header><section><header><h2 id="interfaces"><a href="#interfaces" class="anchor"></a>Interfaces</h2></header><dl><dt class="spec module-type" id="module-type-Operator"><a href="#module-type-Operator" class="anchor"></a><code><span class="keyword">module</span> <span class="keyword">type</span> <a href="module-type-Operator/index.html">Operator</a> = <span class="keyword">sig</span> ... <span class="keyword">end</span></code></dt><dd><p>The interface for a module that defines the operators of a language</p></dd></dl></section><section><header><h2 id="top-level-modules"><a href="#top-level-modules" class="anchor"></a>Top-level modules</h2></header><dl><dt class="spec module" id="module-Var"><a href="#module-Var" class="anchor"></a><code><span class="keyword">module</span> <a href="Var/index.html">Var</a> : <span class="keyword">sig</span> ... <span class="keyword">end</span></code></dt><dd><p>Variables, named by strings, which can be bound to a <a href="Var/Binding/index.html"><code>Var.Binding</code></a> or left free.</p></dd></dl><div class="spec module-type" id="module-type-Syntax"><a href="#module-type-Syntax" class="anchor"></a><code><span class="keyword">module</span> <span class="keyword">type</span> <a href="module-type-Syntax/index.html">Syntax</a> = <span class="keyword">sig</span> ... <span class="keyword">end</span></code></div><dl><dt class="spec module" id="module-Make"><a href="#module-Make" class="anchor"></a><code><span class="keyword">module</span> <a href="Make/index.html">Make</a> : <span class="keyword">functor</span> (<a href="Make/argument-1-Op/index.html">Op</a> : <a href="index.html#module-type-Operator">Operator</a>) <span>&#45;&gt;</span> <a href="index.html#module-type-Syntax">Syntax</a> <span class="keyword">with</span> <span class="keyword">module</span> <a href="Make/Op/index.html">Op</a> = <a href="Make/index.html#argument-1-Op">Op</a></code></dt><dd><p><code>Make (Op)</code> is a module for constructing and manipulating the <code>Syntax</code> of a language with <code>Operator</code>s defined by <code>Op</code>.</p></dd></dl></section></div></body></html>
+(* Define some constructors to ensure correct construction *)
+
+let app m n : t =
+  (* [op] lifts an operator into an ABT *)
+  op (App (m, n))
+
+let lam x m : t =
+  (* [&quot;x&quot; #. scope] binds all free variables named &quot;x&quot; in the [scope] *)
+  op (Lam (x #. m))</code></pre><p>Define the dynamics of your language (here using the variable substitution function <code>subst</code>, provided by the generated syntax):</p><pre><code class="ml">let rec eval : t -&gt; t =
+  fun t -&gt;
+  match t with
+  | Opr (App (m, n)) -&gt; apply (eval m) (eval n)
+  (* No other terms can be evaluated *)
+  | _                -&gt; t
+
+and apply : t -&gt; t -&gt; t =
+  fun m n -&gt;
+  match m with
+  | Bnd (bnd, t)  -&gt; subst bnd ~value:n t
+  | Opr (Lam bnd) -&gt; eval (apply bnd n)
+  (* otherwise the application can't be evaluated *)
+  | _             -&gt; app m n</code></pre><p>Enjoy unification and ɑ-equivalence:</p><pre><code class="ml">(* An example term *)
+let k = lam &quot;x&quot; (lam &quot;y&quot; x)
+
+(* The generated [Syntax] module includes a [Unification] submodule
+
+   - the [=?=] operator checks for unifiability
+   - the [=.=] operator gives an [Ok] result with the unified term, if its operands unify,
+     or else an [Error] indicating why the unification failed
+   - the [unify] function is like [=.=], but it also gives the substitution used to produce
+     a unified term *)
+let ((=?=), (=.=), unify) = Unification.((=?=), (=.=), unify) in
+
+(* A free variable will unify with anything *)
+assert (v &quot;X&quot; =?= s);
+
+(* Unification is modulo ɑ-equivalence *)
+assert (lam &quot;y&quot; (lam &quot;x&quot; y) =?= lam &quot;x&quot; (lam &quot;y&quot; x));
+
+(* Here we unify the free variable &quot;M&quot; with the body of the [k] combinator,
+   note that the nominal unification is modulo bound variables: *)
+let unified_term = (lam &quot;z&quot; (v &quot;M&quot;) =.= k) |&gt; Result.get_ok in
+assert (to_string unified_term = &quot;(λz.(λy.z))&quot;);</code></pre><nav class="toc"><ul><li><a href="#modules-and-interfaces">Modules and interfaces</a></li></ul></nav></header><section><header><h2 id="modules-and-interfaces"><a href="#modules-and-interfaces" class="anchor"></a>Modules and interfaces</h2></header><dl><dt class="spec module-type" id="module-type-Operator"><a href="#module-type-Operator" class="anchor"></a><code><span class="keyword">module</span> <span class="keyword">type</span> <a href="module-type-Operator/index.html">Operator</a> = <span class="keyword">sig</span> ... <span class="keyword">end</span></code></dt><dd><p>The interface for a module that defines the operators of a language</p></dd></dl><dl><dt class="spec module" id="module-Var"><a href="#module-Var" class="anchor"></a><code><span class="keyword">module</span> <a href="Var/index.html">Var</a> : <span class="keyword">sig</span> ... <span class="keyword">end</span></code></dt><dd><p>Variables, named by strings, which can be bound to a <a href="Var/Binding/index.html"><code>Var.Binding</code></a> or left free.</p></dd></dl><dl><dt class="spec module-type" id="module-type-Syntax"><a href="#module-type-Syntax" class="anchor"></a><code><span class="keyword">module</span> <span class="keyword">type</span> <a href="module-type-Syntax/index.html">Syntax</a> = <span class="keyword">sig</span> ... <span class="keyword">end</span></code></dt><dd><p>The interface of the family of UABTs representings a syntax</p></dd></dl><dl><dt class="spec module" id="module-Make"><a href="#module-Make" class="anchor"></a><code><span class="keyword">module</span> <a href="Make/index.html">Make</a> : <span class="keyword">functor</span> (<a href="Make/argument-1-Op/index.html">Op</a> : <a href="index.html#module-type-Operator">Operator</a>) <span>&#45;&gt;</span> <a href="index.html#module-type-Syntax">Syntax</a> <span class="keyword">with</span> <span class="keyword">module</span> <a href="Make/Op/index.html">Op</a> = <a href="Make/index.html#argument-1-Op">Op</a></code></dt><dd><p><code>Make (Op)</code> is a module for constructing and manipulating the <code>Syntax</code> of a language with <code>Operator</code>s defined by <code>Op</code>.</p></dd></dl></section></div></body></html>
