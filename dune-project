@@ -30,7 +30,7 @@
   ; preprocessing
   (ppx_expect (>= v0.14.1))
   (ppx_deriving (>= 5.2.1))
-  (ppx_sexp_con (>= v0.14.3))
+  (ppx_sexp_conv (>= v0.14.3))
   (logs-ppx (>= 0.2.0))
 
   ; tests
