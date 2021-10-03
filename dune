@@ -1,8 +1,10 @@
 ;  FIXME: Uncomment
+
 (test
  (name readme)
  (libraries um-abt ppx_deriving.runtime)
- (preprocess (pps ppx_deriving.std)))
+ (preprocess
+  (pps ppx_deriving.std ppx_sexp_conv)))
 
 (rule
  (alias runtest)

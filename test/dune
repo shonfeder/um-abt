@@ -1,4 +1,5 @@
 (test
  (name test)
  (libraries um-abt qcheck ppx_deriving.runtime example)
- (preprocess (pps ppx_deriving.std ppx_expect)))
+ (preprocess
+  (pps ppx_deriving.std ppx_expect)))

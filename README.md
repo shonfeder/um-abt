@@ -103,7 +103,7 @@ module Syntax = struct
       type 'a t =
       | App of 'a * 'a
       | Lam of 'a
-      [@@deriving eq, map, fold]
+      [@@deriving eq, map, fold, sexp]
 
       let to_string : string t -> string = function
       | App (l, m) -> Printf.sprintf "(%s %s)" l m

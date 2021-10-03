@@ -1,29 +1,29 @@
 (* Copyright (c) 2021 Shon Feder
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. *)
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE. *)
 
 module Log = Logs
 
 module type Operator = sig
   (** An operator *)
 
-  type 'a t
+  type 'a t [@@deriving sexp]
 
   val map : ('a -> 'b) -> 'a t -> 'b t
 
@@ -46,7 +46,9 @@ module Var = struct
       Hashtbl.add bnd_names n count;
       count
 
-    type t = (string * int) ref
+    open Sexplib.Std
+
+    type t = (string * int) ref [@@deriving sexp]
 
     let v s = ref (s, add_name s)
 
@@ -55,16 +57,16 @@ module Var = struct
 
     (** Representation of name that includes the unique id *)
     let name_debug bnd =
-      let (n, c) = !bnd in
-      (n ^ Int.to_string c)
+      let n, c = !bnd in
+      n ^ Int.to_string c
 
     let compare a b =
       (* Physical equality of references *)
       if a == b then
         0
       else
-        let (a_name, a_count) = !a in
-        let (b_name, b_count) = !b in
+        let a_name, a_count = !a in
+        let b_name, b_count = !b in
         let name_cmp = String.compare a_name b_name in
         if name_cmp = 0 then
           Int.compare a_count b_count
@@ -75,9 +77,12 @@ module Var = struct
   end
 
   module T = struct
+    open Sexplib.Std
+
     type t =
       | Free of string
       | Bound of Binding.t
+    [@@deriving sexp]
 
     let compare a b =
       match (a, b) with
@@ -106,7 +111,7 @@ module Var = struct
   let to_string = name
 
   let to_string_debug = function
-    | Free s -> s
+    | Free s  -> s
     | Bound b -> Binding.name_debug b
 
   let v s = Free s
@@ -328,6 +333,7 @@ module Make (Op : Operator) = struct
     | Var of Var.t
     | Bnd of Var.Binding.t * t
     | Opr of t Op.t
+  [@@deriving sexp]
 
   let rec to_string t =
     t |> function

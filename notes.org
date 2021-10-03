@@ -10,6 +10,18 @@ It would be nice if terms could specify when they took a binding operator.
 Maybe with GADTs?
 ** TODO Add default syntax ser/de
 Start with just basic s-exprs
+** TODO Add deriving ppx
+#+begin_src ocaml
+type 'a t =
+  | Foo of string
+  | Bar of int * 'a
+[@@deriving abt]
+#+end_src
+
+Will produce an ABT including:
+
+- constructors
+- to string impl
 ** TODO Use GADTs for a finally tagless style?
 https://ocaml.org/manual/gadts.html
 ** TODO Explore use of nominal logic:

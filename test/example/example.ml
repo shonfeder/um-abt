@@ -1,22 +1,22 @@
 (* Copyright (c) 2021 Shon Feder
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. *)
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE. *)
 
 open! Bos_setup
 
@@ -28,7 +28,7 @@ module Untyped_lambda_calculus = struct
       type 'a t =
         | App of 'a * 'a
         | Lam of 'a
-      [@@deriving eq, map, fold]
+      [@@deriving eq, map, fold, sexp]
 
       let to_string : string t -> string = function
         | App (l, m) -> Printf.sprintf "(%s %s)" l m
@@ -169,10 +169,12 @@ end
 module Arithmetic_expressions = struct
   module Syntax = struct
     module O = struct
+      open Sexplib.Std
+
       type 'a t =
         | Num of int
         | Plus of 'a * 'a
-      [@@deriving fold]
+      [@@deriving fold, sexp]
 
       let equal eq a b =
         match (a, b) with
@@ -317,10 +319,12 @@ end
 module Prolog = struct
   module Syntax = struct
     module O = struct
+      open Sexplib.Std
+
       type 'a t =
         | Atom of string
         | Compound of string * 'a list
-      [@@deriving eq, map, fold]
+      [@@deriving eq, map, fold, sexp]
 
       let to_string : string t -> string = function
         | Atom a             -> a
