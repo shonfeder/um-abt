@@ -113,6 +113,15 @@ module Unification_properties (Tester : Syntax_tester) = struct
     ]
 end
 
+module Serialization_properties (Tester : Syntax_tester) = struct
+  open Tester
+
+  let properties =
+    [ property "sexp conversion of terms is involutive" term (fun t ->
+          Syntax.(equal t (t |> to_sexp |> of_sexp)))
+    ]
+end
+
 let arbitrary_utlc_term =
   let open Example.Untyped_lambda_calculus.Syntax in
   let x, y, z = (v "x", v "y", v "z") in
@@ -122,8 +131,8 @@ let arbitrary_utlc_term =
   oneof [ Abt_gen.Utlc.arbitrary; s; k; i ]
 
 let utlc_tests =
-  let term = arbitrary_utlc_term in
   let open Example.Untyped_lambda_calculus.Syntax in
+  let term = arbitrary_utlc_term in
   [ property "alpha equivalence -- reflexivity" term (fun t -> t = t)
   ; property
       "utlc -- alpha equivalance -- compatibility"
@@ -165,26 +174,33 @@ let arbitrary_prolog_term =
   in
   oneof [ Abt_gen.Prolog.arbitrary; terms ]
 
-module Utlc_unification_properties = Unification_properties (struct
+module Utlc_tester : Syntax_tester = struct
   let name = "utlc"
 
   module Syntax = Example.Untyped_lambda_calculus.Syntax
 
   let term = arbitrary_utlc_term
-end)
+end
 
-module Prolog_unification_properties = Unification_properties (struct
+module Prolog_tester : Syntax_tester = struct
   let name = "prolog"
 
   module Syntax = Example.Prolog.Syntax
 
   let term = arbitrary_prolog_term
-end)
+end
+
+module Utlc_unification_properties = Unification_properties (Utlc_tester)
+module Utlc_serialization_properties = Unification_properties (Utlc_tester)
+module Prolog_unification_properties = Unification_properties (Prolog_tester)
+module Prolog_serialization_properties = Unification_properties (Prolog_tester)
 
 let () =
   (* Logs.set_level (Some Logs.Debug); *)
   (* QCheck_runner.set_seed 86516582; *)
   QCheck_runner.run_tests_main
     (utlc_tests
+    @ Utlc_serialization_properties.properties
+    @ Prolog_serialization_properties.properties
     @ Utlc_unification_properties.properties
     @ Prolog_unification_properties.properties)

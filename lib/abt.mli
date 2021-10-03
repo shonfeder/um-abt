@@ -235,6 +235,7 @@ module type Syntax = sig
     | Var of Var.t  (** Variables *)
     | Bnd of Var.Binding.t * t  (** Scoped variable binding *)
     | Opr of t Op.t  (** Operators specified in {!Op} *)
+  [@@deriving sexp]
 
   val bind : Var.Binding.t -> t -> t
   (** [bind bnd t] is a branch of the ABT, in which any free variables in [t]
@@ -264,6 +265,12 @@ module type Syntax = sig
   val subst_var : string -> value:t -> t -> t
   (** [subst_var name ~value t] is a new abt obtained by substituting [value] for
       the outermost scope of variables bound to [name] in [t] *)
+
+  val to_sexp : t -> Sexplib.Sexp.t
+  (** [to_sexp t] is the representation of [t] as an s-expression *)
+
+  val of_sexp : Sexplib.Sexp.t -> t
+  (** [of_sexp s] is Abt represented by the s-expression [s] *)
 
   val to_string : t -> string
   (** [to_string t] is the representation of [t] as a string *)
