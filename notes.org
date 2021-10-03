@@ -22,6 +22,10 @@ Will produce an ABT including:
 
 - constructors
 - to string impl
+** TODO Removing dependency on ppx_sexp_conv and sexplib
+Will just require manually putting in the sexp conversion functions. Should be
+straight forward, and will helps keep a tiny dependency footprint
+
 ** TODO Use GADTs for a finally tagless style?
 https://ocaml.org/manual/gadts.html
 ** TODO Explore use of nominal logic:
