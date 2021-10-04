@@ -2,8 +2,9 @@
  (public_name um-abt)
  (name abt)
  (inline_tests)
- (libraries ppx_deriving.runtime logs)
- (preprocess (pps logs-ppx ppx_expect ppx_deriving.std)))
+ (libraries ppx_deriving.runtime logs sexplib)
+ (preprocess
+  (pps logs-ppx ppx_expect ppx_deriving.std ppx_sexp_conv)))
 
 ; (env
 ;   (dev

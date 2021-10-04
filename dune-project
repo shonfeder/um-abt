@@ -24,10 +24,16 @@
  (conflicts
   (result (< 1.5)))
  (depends
+  (logs (>= 0.7.0))
+  (sexplib (>= v0.14.0))
+
+  ; preprocessing
   (ppx_expect (>= v0.14.1))
   (ppx_deriving (>= 5.2.1))
-  (logs (>= 0.7.0))
+  (ppx_sexp_conv (>= v0.14.3))
   (logs-ppx (>= 0.2.0))
+
+  ; tests
   (qcheck (and :with-test (>= 0.17)))
   (bos (and :with-test (>= 0.2.0)))
   (mdx (and :with-test (>= 1.10.1)))))

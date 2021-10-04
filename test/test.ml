@@ -1,22 +1,22 @@
 (* Copyright (c) 2021 Shon Feder
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. *)
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE. *)
 
 open QCheck
 
@@ -53,13 +53,17 @@ module Unification_properties (Tester : Syntax_tester) = struct
     [ property "reflexivity" term (fun t -> t =?= t)
     ; property "symmetry" (two term) (fun (a, b) -> a =?= b ==> (b =?= a))
     ; (* TODO Fix transitivity when occurs check fails. Use seed 399269583  *)
-      property "transitivity (modulo occurs check)" (three term) (fun (a, b, c) ->
+      property
+        "transitivity (modulo occurs check)"
+        (three term)
+        (fun (a, b, c) ->
           let a_b = a =.= b |> assume_unified in
           let b_c = a_b =.= c |> assume_unified in
           match a =.= b_c with
-          | Ok _ | Error (`Occurs _) -> true
-          | _ -> false
-        )
+          | Ok _
+          | Error (`Occurs _) ->
+              true
+          | _ -> false)
     ; property
         "free variables unify (unless occurs check fails)"
         (pair Abt_gen.Var.arbitrary_free term)
@@ -109,6 +113,15 @@ module Unification_properties (Tester : Syntax_tester) = struct
     ]
 end
 
+module Serialization_properties (Tester : Syntax_tester) = struct
+  open Tester
+
+  let properties =
+    [ property "sexp conversion of terms is involutive" term (fun t ->
+          Syntax.(equal t (t |> to_sexp |> of_sexp)))
+    ]
+end
+
 let arbitrary_utlc_term =
   let open Example.Untyped_lambda_calculus.Syntax in
   let x, y, z = (v "x", v "y", v "z") in
@@ -118,8 +131,8 @@ let arbitrary_utlc_term =
   oneof [ Abt_gen.Utlc.arbitrary; s; k; i ]
 
 let utlc_tests =
-  let term = arbitrary_utlc_term in
   let open Example.Untyped_lambda_calculus.Syntax in
+  let term = arbitrary_utlc_term in
   [ property "alpha equivalence -- reflexivity" term (fun t -> t = t)
   ; property
       "utlc -- alpha equivalance -- compatibility"
@@ -161,26 +174,33 @@ let arbitrary_prolog_term =
   in
   oneof [ Abt_gen.Prolog.arbitrary; terms ]
 
-module Utlc_unification_properties = Unification_properties (struct
+module Utlc_tester : Syntax_tester = struct
   let name = "utlc"
 
   module Syntax = Example.Untyped_lambda_calculus.Syntax
 
   let term = arbitrary_utlc_term
-end)
+end
 
-module Prolog_unification_properties = Unification_properties (struct
+module Prolog_tester : Syntax_tester = struct
   let name = "prolog"
 
   module Syntax = Example.Prolog.Syntax
 
   let term = arbitrary_prolog_term
-end)
+end
+
+module Utlc_unification_properties = Unification_properties (Utlc_tester)
+module Utlc_serialization_properties = Unification_properties (Utlc_tester)
+module Prolog_unification_properties = Unification_properties (Prolog_tester)
+module Prolog_serialization_properties = Unification_properties (Prolog_tester)
 
 let () =
   (* Logs.set_level (Some Logs.Debug); *)
   (* QCheck_runner.set_seed 86516582; *)
   QCheck_runner.run_tests_main
     (utlc_tests
+    @ Utlc_serialization_properties.properties
+    @ Prolog_serialization_properties.properties
     @ Utlc_unification_properties.properties
     @ Prolog_unification_properties.properties)

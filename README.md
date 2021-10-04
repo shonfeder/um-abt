@@ -103,7 +103,7 @@ module Syntax = struct
       type 'a t =
       | App of 'a * 'a
       | Lam of 'a
-      [@@deriving eq, map, fold]
+      [@@deriving eq, map, fold, sexp]
 
       let to_string : string t -> string = function
       | App (l, m) -> Printf.sprintf "(%s %s)" l m
@@ -204,7 +204,7 @@ and apply : t -> t -> t =
 Finally, let's illustrate the correctness of our implementation with a few
 simple evaluations, demonstrating that our SKI combinators behave as expected:
 
-``` ocaml
+```ocaml
 let () =
   (* Let equality be ɑ-equivalence on our syntax for the following examples *)
   let (=) = Syntax.equal in
@@ -230,7 +230,7 @@ implementation support first-order, syntactic unification modulo ɑ-equivalence.
 - Unification is modulo ɑ-equivalence, because two ɑ-equivalent ABTs are
   considered equal during unification.
 
-``` ocaml
+```ocaml
 let () =
   let open Syntax in
 
