@@ -1,3 +1,7 @@
+## v0.1.7
+
+- Add s-expression representation of UABTs (See #3)
+
 ## v0.1.6
 
 - Improve documentation
