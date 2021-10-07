@@ -191,9 +191,9 @@ module Prolog_tester : Syntax_tester = struct
 end
 
 module Utlc_unification_properties = Unification_properties (Utlc_tester)
-module Utlc_serialization_properties = Unification_properties (Utlc_tester)
 module Prolog_unification_properties = Unification_properties (Prolog_tester)
-module Prolog_serialization_properties = Unification_properties (Prolog_tester)
+module Utlc_serialization_properties = Serialization_properties (Utlc_tester)
+module Prolog_serialization_properties = Serialization_properties (Prolog_tester)
 
 let () =
   (* Logs.set_level (Some Logs.Debug); *)
