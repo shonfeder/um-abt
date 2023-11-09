@@ -22,7 +22,8 @@
 `um-abt` is an OCaml library implementing abstract binding trees (ABTs)
 exhibiting the properties defined in [Robert
 Harper](https://www.cs.cmu.edu/~rwh/pfpl/)'s [Practical Foundations for
-Programming Labguages](https://www.cs.cmu.edu/~rwh/pfpl/) (PFPL).
+Programming Labguages](https://www.cs.cmu.edu/~rwh/pfpl/) (PFPL) augmented with
+unification modulo ɑ-equivalence.
 
 ### Documentation
 
@@ -44,19 +45,19 @@ This library aims for the following qualities:
 This ABT library has two distinctive (afaik) features:
 
 1. The library augments the binding functionality of the ABT approach with
-   **unification modulo ɑ-equivalence**. We might therefore describe this
-   library as an implementation of *unifiable* abstract binding trees (or
-   UABTs): where ABTs provide a general and reusable system for variable
-   binding, UABTs add a general and reusable system for nominal unification.
+   **unification modulo ɑ-equivalence**. We therefore describe this library as
+   an implementation of *unifiable* abstract binding trees (or UABTs): where
+   ABTs provide a general and reusable system for variable binding, UABTs add a
+   general and reusable system for nominal unification.
 
    Unification is lovely and not used nearly enough, imo.
 
 2. The library implements variable binding via (what we might call) **binding by
    reference**; i.e., variable binding is recorded in the pointer structure of
-   by way of "immutable" reference cells. This is somewhat of an experiment:
-   being unaware of other implementations using this approach, I worked out the
-   details as I went. So far, it seems to have yielded [trivial ɑ-equivalence
-   and substitution algorithms, and enabled nominal unification][], without
+   "immutable" reference cells. This is an experiment: being unaware of any
+   other implementations using this approach, I worked out the details as I
+   went. So far, it seems to have yielded [trivial ɑ-equivalence and
+   substitution algorithms, and enabled nominal unification][], without
    requiring any bureaucratic fiddling with renaming, variable permutations, or
    fresh variables. 
    
@@ -110,10 +111,10 @@ module Syntax = struct
       | Lam abs    -> Printf.sprintf "(λ%s)" abs
   end
 
-  (* Generate the syntax, which will include a type [t] of the ABTs over the operators **)
+  (* Generate the syntax, which will include a type [t] specifying the ABTs that can be created from the operators **)
   include Abt.Make (O)
 
-  (* Define some constructors to ensure correct construction *)
+  (* Define some helper constructors, that make construction more concise. *)
 
   let app m n : t =
     (* [op] lifts an operator into an ABT *)
@@ -166,8 +167,8 @@ let () =
   assert (Syntax.to_string i = "(λx.x)");
 ```
 
-Note that equality between ABTs is defined in terms of ɑ-equivalence, so we can
-define the `i` using any variable, and it will be equivalent:
+Note that equality between ABTs is defined in terms of ɑ-equivalence, so we
+could have define `i` using any variable, and it will be equivalent:
 
 ```ocaml
 let () =
@@ -176,11 +177,6 @@ let () =
 
 
 Now let's define reduction, using the API provided by our generated `Syntax`.
-`Syntax` modules expose `private` value constructors, which provide a
-pattern-matching based interface for destructuring ABTs, but prevents
-constructing new ABTs directly. This gives us the convenience of a pattern
-matching API without compromising the integrity of the ABT representation by
-allowing ill-formed structures.
 
 ```ocaml
 open Syntax
@@ -250,7 +246,8 @@ let () =
   assert (lam "y" (lam "x" y) =?= lam "x" (lam "y" x));
 
   (* Here we unify the free variable "M" with the body of the [k] combinator, 
-     note that the nominal unification is modulo bound variables: *)
+     note that the nominal unification is modulo bound variables -- i.e., the bound [x]
+     in the definitation of [k] is unfied with the bound [z] in our term on the lefthand side: *)
   let unified_term = (lam "z" (v "M") =.= k) |> Result.get_ok in
   assert (to_string unified_term = "(λz.(λy.z))");
 
