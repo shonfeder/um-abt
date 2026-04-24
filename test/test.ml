@@ -52,8 +52,7 @@ module Unification_properties (Tester : Syntax_tester) = struct
   let properties =
     [ property "reflexivity" term (fun t -> t =?= t)
     ; property "symmetry" (two term) (fun (a, b) -> a =?= b ==> (b =?= a))
-    ; (* TODO Fix transitivity when occurs check fails. Use seed 399269583  *)
-      property
+    ; property
         "transitivity (modulo occurs check)"
         (three term)
         (fun (a, b, c) ->
@@ -125,9 +124,9 @@ end
 let arbitrary_utlc_term =
   let open Example.Untyped_lambda_calculus.Syntax in
   let x, y, z = (v "x", v "y", v "z") in
-  let s = oneofl [ lam "x" (lam "y" (lam "z" (app (app x y) (app y z)))) ] in
-  let k = oneofl [ lam "x" (lam "y" x); lam "y" (lam "x" y) ] in
-  let i = oneofl [ lam "x" x; lam "y" y; lam "z" z ] in
+  let s = oneof_list [ lam "x" (lam "y" (lam "z" (app (app x y) (app y z)))) ] in
+  let k = oneof_list [ lam "x" (lam "y" x); lam "y" (lam "x" y) ] in
+  let i = oneof_list [ lam "x" x; lam "y" y; lam "z" z ] in
   oneof [ Abt_gen.Utlc.arbitrary; s; k; i ]
 
 let utlc_tests =
@@ -160,7 +159,7 @@ let arbitrary_prolog_term =
   let x, y, z = (v "X", v "Y", v "Z") in
   let a, b, c = (atom "a", atom "b", atom "c") in
   let terms =
-    oneofl
+    oneof_list
       [ comp "f" [ x; a ]
       ; comp "g" [ b; y; a ]
       ; comp "h" [ x; comp "i" [ y; a; z ] ]

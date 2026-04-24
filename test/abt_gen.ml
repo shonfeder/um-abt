@@ -53,7 +53,7 @@ module Utlc = struct
     @@ fix (fun self -> function
          | 0 -> map v Var.var_name_gen
          | n ->
-             frequency
+             oneof_weighted
                [ (1, map2 app (self (n / 2)) (self (n / 2)))
                ; (1, map2 lam Var.var_name_gen (self (n / 2)))
                ])
@@ -83,7 +83,7 @@ module Prolog = struct
     @@ fix (fun self size ->
            match size with
            | 0 ->
-               frequency
+               oneof_weighted
                  [ (1, map atom Var.var_name_gen)
                  ; (1, map v Var.var_name_gen_caps)
                  ]
