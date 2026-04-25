@@ -303,6 +303,9 @@ module type Syntax = sig
       type t
       (** Substitutions mapping free variables to terms *)
 
+      val apply : t -> term -> term
+      (** Apply a substitution to a term *)
+
       val find : Var.t -> t -> term option
       (** [find v s] is [Some term] if [v] is bound to [term] in the
           substitution [s], otherwise it is [None]*)
@@ -590,7 +593,7 @@ module Make (Op : Operator) = struct
 
          When [lookup] is provided, it tells us how to find binding
          correlates for the apprpriate side of a unification *)
-      let apply : ?lookup:Bndmap.lookup -> t -> term -> term =
+      let apply_lookup : ?lookup:Bndmap.lookup -> t -> term -> term =
        fun ?lookup s term ->
         [%log debug "apply invoked for %s" (term_to_string term)];
         let lookup = lookup_binding lookup in
@@ -616,6 +619,8 @@ module Make (Op : Operator) = struct
                   aux cyc_vars s substitute)
         in
         aux Var.Set.empty s term
+
+      let apply t term = apply_lookup t term
 
       let ( let* ) = Result.bind
 
@@ -646,7 +651,7 @@ module Make (Op : Operator) = struct
         in
         let* subst = aux (Ok empty) a b in
         try
-          Var.Map.iter (fun _ cell -> cell := apply subst !cell) subst.vars;
+          Var.Map.iter (fun _ cell -> cell := apply_lookup subst !cell) subst.vars;
           [%log
             debug
               "substution for %s %s built: %s"
@@ -670,8 +675,8 @@ module Make (Op : Operator) = struct
       let result =
         [%log debug "unification start: %s =.= %s" (to_string a) (to_string b)];
         let* subst = Subst.build a b in
-        let a' = Subst.apply ~lookup:Bndmap.find_left subst a in
-        let b' = Subst.apply ~lookup:Bndmap.find_right subst b in
+        let a' = Subst.apply_lookup ~lookup:Bndmap.find_left subst a in
+        let b' = Subst.apply_lookup ~lookup:Bndmap.find_right subst b in
         [%log
           debug
             "checking for alpha equivalence: %s = %s"

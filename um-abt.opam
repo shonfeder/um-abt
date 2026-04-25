@@ -16,7 +16,7 @@ homepage: "https://github.com/shonfeder/um-abt"
 doc: "https://shonfeder.github.io/um-abt"
 bug-reports: "https://github.com/shonfeder/um-abt/issues"
 depends: [
-  "dune" {>= "2.8"}
+  "dune" {>= "3.22"}
   "logs" {>= "0.7.0"}
   "sexplib" {>= "v0.14.0"}
   "ppx_expect" {>= "v0.14.1"}
@@ -46,3 +46,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/shonfeder/um-abt.git"
+x-maintenance-intent: ["(latest)"]

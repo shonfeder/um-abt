@@ -83,32 +83,13 @@ module Unification_properties (Tester : Syntax_tester) = struct
           | _ -> false)
     ; property "equal terms unify" (two term) (fun (a, b) ->
           (not (equal a b)) || a =?= b)
-      (* TODO The following is invalid for nominal unificaiton due to difference in binding names
-              find the property that actually does hold. *)
-      (* ; property
-       *     "all free vars in terms are bound to subterms in unification"
-       *     (two term)
-       *     (fun (a, b) ->
-       *       let u, substitution = unify a b |> assume_unified in
-       *       let u_free_vars = free_vars u in
-       *       let u_subterms = subterms u in
-       *
-       *       let bound_a_vars = Abt.Var.Set.diff (free_vars a) u_free_vars in
-       *       let all_bound_free_vars_in_a_are_bound_to_subterms_of_unified =
-       *         bound_a_vars
-       *         |> Abt.Var.Set.for_all (fun v ->
-       *                List.mem (Subst.find v substitution |> Option.get) u_subterms)
-       *       in
-       *
-       *       let bound_b_vars = Abt.Var.Set.diff (free_vars b) u_free_vars in
-       *       let all_bound_free_vars_in_b_are_bound_to_subterms_of_unified =
-       *         bound_b_vars
-       *         |> Abt.Var.Set.for_all (fun v ->
-       *                List.mem (Subst.find v substitution |> Option.get) u_subterms)
-       *       in
-       *
-       *       all_bound_free_vars_in_a_are_bound_to_subterms_of_unified
-       *       && all_bound_free_vars_in_b_are_bound_to_subterms_of_unified) *)
+    ; property
+        "substitution witnesses the unification"
+        (two term)
+        (fun (a, b) ->
+          let u, substitution = unify a b |> assume_unified in
+          let apply = Unification.Subst.apply substitution in
+          equal (apply a) u && equal (apply b) u)
     ]
 end
 
