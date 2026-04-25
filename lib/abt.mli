@@ -309,7 +309,7 @@ module type Syntax = sig
       type t
       (** Substitutions mapping free variables to terms *)
 
-      val apply : t -> term -> term
+      val apply : ?lookup:[`Left | `Right] -> t -> term -> term
 
       val find : Var.t -> t -> term option
       (** [find v s] is [Some term] if [v] is bound to [term] in the

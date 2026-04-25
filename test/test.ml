@@ -88,8 +88,8 @@ module Unification_properties (Tester : Syntax_tester) = struct
         (two term)
         (fun (a, b) ->
           let u, substitution = unify a b |> assume_unified in
-          let apply = Unification.Subst.apply substitution in
-          equal (apply a) u && equal (apply b) u)
+          let apply l = Subst.apply ~lookup:l substitution in
+          equal (apply `Left a) u && equal (apply `Right b) u)
     ]
 end
 

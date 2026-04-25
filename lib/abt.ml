@@ -303,7 +303,7 @@ module type Syntax = sig
       type t
       (** Substitutions mapping free variables to terms *)
 
-      val apply : t -> term -> term
+      val apply : ?lookup:[`Left | `Right] -> t -> term -> term
       (** Apply a substitution to a term *)
 
       val find : Var.t -> t -> term option
@@ -480,20 +480,25 @@ module Make (Op : Operator) = struct
       [%log debug "fail: %s ocurrs in %s" (Var.to_string v) (to_string t)];
       `Occurs (v, t)
 
-    (* Error when a substitution is added for a variable already assigned to an incompatible value *)
+    (* Error when a substitution is added for a variable already assigned to an
+       incompatible value *)
     module Subst = struct
       type term = t
 
       type t =
-        { bnds : Bndmap.t (* Correspondences between bindings *)
+        { bnds : Bndmap.t
+          (* Correspondences between bindings *)
         ; vars : term ref Var.Map.t
-              (* Substitution mappings from free vars to terms *)
+          (* Substitution mappings from free vars to terms *)
         }
       (* Substitution maps free variables to mutable refs.
          When two free variables are assigned to be aliases, they simply share the same ref.
          Therefore, assigning one variable, sufficies to assign all of its aliases. *)
 
-      let empty : t = { bnds = Bndmap.empty; vars = Var.Map.empty }
+      let empty : t =
+        { bnds = Bndmap.empty
+        ; vars = Var.Map.empty
+        }
 
       (* TODO Work out coherent scheme for dealing with binder transitions! *)
 
@@ -593,10 +598,14 @@ module Make (Op : Operator) = struct
 
          When [lookup] is provided, it tells us how to find binding
          correlates for the apprpriate side of a unification *)
-      let apply_lookup : ?lookup:Bndmap.lookup -> t -> term -> term =
+      let apply : ?lookup:[`Left | `Right] -> t -> term -> term =
        fun ?lookup s term ->
         [%log debug "apply invoked for %s" (term_to_string term)];
-        let lookup = lookup_binding lookup in
+        let lookup = lookup_binding @@ match lookup with
+          | Some `Left -> Some Bndmap.find_left
+          | Some `Right ->Some Bndmap.find_right
+          | _ -> None
+        in
         (* cyc_vars are the vars we're already tring to substitute for
            lets us detect cycles *)
         let rec aux cyc_vars s term =
@@ -619,8 +628,6 @@ module Make (Op : Operator) = struct
                   aux cyc_vars s substitute)
         in
         aux Var.Set.empty s term
-
-      let apply t term = apply_lookup t term
 
       let ( let* ) = Result.bind
 
@@ -651,7 +658,7 @@ module Make (Op : Operator) = struct
         in
         let* subst = aux (Ok empty) a b in
         try
-          Var.Map.iter (fun _ cell -> cell := apply_lookup subst !cell) subst.vars;
+          Var.Map.iter (fun _ cell -> cell := apply subst !cell) subst.vars;
           [%log
             debug
               "substution for %s %s built: %s"
@@ -675,8 +682,8 @@ module Make (Op : Operator) = struct
       let result =
         [%log debug "unification start: %s =.= %s" (to_string a) (to_string b)];
         let* subst = Subst.build a b in
-        let a' = Subst.apply_lookup ~lookup:Bndmap.find_left subst a in
-        let b' = Subst.apply_lookup ~lookup:Bndmap.find_right subst b in
+        let a' = Subst.apply ~lookup:`Left subst a in
+        let b' = Subst.apply ~lookup:`Right subst b in
         [%log
           debug
             "checking for alpha equivalence: %s = %s"
